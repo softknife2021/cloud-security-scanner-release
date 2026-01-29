@@ -1,0 +1,238 @@
+# Docker Compose for pulling pre-built images from Docker Hub
+# Usage: docker-compose -f docker-compose.hub.yml --env-file local.env up -d
+#
+# This file is for users who want to try the application without building locally.
+# Images are pulled from Docker Hub: softknife/cloud-security-*
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: cloud-security-agent-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: security_agent
+      POSTGRES_USER: secadmin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secpass123}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secadmin -d security_agent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - cloud-security-network
+
+  # Security Agent Backend (Java/Spring Boot)
+  security-agent:
+    image: softknife/cloud-security-agent:latest
+    container_name: cloud-security-agent-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/security_agent
+      SPRING_DATASOURCE_USERNAME: secadmin
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-secpass123}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_JPA_SHOW_SQL: ${SHOW_SQL:-false}
+      JWT_SECRET: ${JWT_SECRET:-MySecureJWTSecretKeyForProductionPleaseChangeThisToAStrongRandomValue}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      SERVER_PORT: 8080
+      LOGGING_LEVEL_ROOT: ${LOG_LEVEL:-INFO}
+      LOGGING_LEVEL_COM_SOFTKNIFE: ${APP_LOG_LEVEL:-DEBUG}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - scan-outputs:/app/scans
+      - app-logs:/app/logs
+    networks:
+      - cloud-security-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Security Agent UI (React)
+  security-agent-ui:
+    image: softknife/cloud-security-ui:latest
+    container_name: cloud-security-agent-ui
+    restart: unless-stopped
+    depends_on:
+      security-agent:
+        condition: service_healthy
+    ports:
+      - "${UI_PORT:-3000}:80"
+    networks:
+      - cloud-security-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Scanner Agent (Python-based security scanner)
+  scanner-agent:
+    image: softknife/cloud-security-scanner:latest
+    container_name: cloud-security-scanner-agent
+    restart: unless-stopped
+    depends_on:
+      security-agent:
+        condition: service_healthy
+    environment:
+      AGENT_ID: ${AGENT_ID:-scanner-agent-001}
+      HOSTNAME: scanner-agent-container
+      API_BASE_URL: http://security-agent:8080
+      POLL_INTERVAL: ${POLL_INTERVAL:-30}
+      JWT_TOKEN: ${SCANNER_JWT_TOKEN:-}
+      LOG_LEVEL: ${SCANNER_LOG_LEVEL:-INFO}
+      S3_ENABLED: ${S3_ENABLED:-false}
+      S3_BUCKET: ${S3_BUCKET:-scan-results}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+    volumes:
+      - scanner-outputs:/app/outputs
+      - scanner-logs:/app/logs
+    networks:
+      - cloud-security-network
+    profiles:
+      - scanner
+
+  # Selenium Chrome (for UI testing)
+  selenium-chrome:
+    image: selenium/standalone-chrome:latest
+    container_name: cloud-security-selenium
+    shm_size: '2g'
+    ports:
+      - "4444:4444"
+      - "7900:7900"
+    environment:
+      - SE_NODE_MAX_SESSIONS=3
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+      - SE_SESSION_REQUEST_TIMEOUT=300
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - cloud-security-network
+    profiles:
+      - ui-test
+
+  # UI Test Agent (Java + QReasp WebDriver)
+  ui-test-agent:
+    image: softknife/cloud-security-ui-test-agent:latest
+    container_name: cloud-security-ui-test-agent
+    restart: unless-stopped
+    depends_on:
+      security-agent:
+        condition: service_healthy
+      selenium-chrome:
+        condition: service_healthy
+    environment:
+      AGENT_ID: ${UI_TEST_AGENT_ID:-ui-test-agent-001}
+      API_BASE_URL: http://security-agent:8080
+      SELENIUM_URL: http://selenium-chrome:4444
+      POLL_INTERVAL: ${UI_TEST_POLL_INTERVAL:-30}
+      MAX_CONCURRENT_JOBS: 2
+      DEFAULT_TIMEOUT: 30
+      AUTH_USERNAME: ${UI_TEST_USERNAME:-admin}
+      AUTH_PASSWORD: ${UI_TEST_PASSWORD:-admin123}
+      LOG_LEVEL: ${UI_TEST_LOG_LEVEL:-INFO}
+    networks:
+      - cloud-security-network
+    profiles:
+      - ui-test
+
+  # Vulnerable Test Target (DVWA)
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    container_name: cloud-security-test-target
+    restart: unless-stopped
+    ports:
+      - "${DVWA_PORT:-8888}:80"
+    networks:
+      - cloud-security-network
+    profiles:
+      - target
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # MinIO (S3-compatible object storage for scan results)
+  minio:
+    image: minio/minio:latest
+    container_name: cloud-security-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - cloud-security-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    profiles:
+      - storage
+
+  # MinIO bucket initialization (creates bucket on startup)
+  minio-init:
+    image: minio/mc:latest
+    container_name: cloud-security-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin};
+      mc mb myminio/$${S3_BUCKET:-scan-results} --ignore-existing;
+      mc anonymous set download myminio/$${S3_BUCKET:-scan-results};
+      echo 'Bucket created successfully';
+      exit 0;
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-scan-results}
+    networks:
+      - cloud-security-network
+    profiles:
+      - storage
+
+volumes:
+  postgres-data:
+  scan-outputs:
+  app-logs:
+  scanner-outputs:
+  scanner-logs:
+  minio-data:
+
+networks:
+  cloud-security-network:
+    driver: bridge
