@@ -31,6 +31,7 @@ services:
 
   # Security Agent Backend (Java/Spring Boot)
   security-agent:
+    platform: linux/amd64
     image: softknife/cloud-security-agent:latest
     container_name: cloud-security-agent-app
     restart: unless-stopped
@@ -84,6 +85,7 @@ services:
 
   # Scanner Agent (Python-based security scanner)
   scanner-agent:
+    platform: linux/amd64
     image: softknife/cloud-security-scanner:latest
     container_name: cloud-security-scanner-agent
     restart: unless-stopped
@@ -135,6 +137,7 @@ services:
 
   # UI Test Agent (Java + QReasp WebDriver)
   ui-test-agent:
+    platform: linux/amd64
     image: softknife/cloud-security-ui-test-agent:latest
     container_name: cloud-security-ui-test-agent
     restart: unless-stopped
