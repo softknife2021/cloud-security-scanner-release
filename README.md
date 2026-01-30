@@ -48,8 +48,14 @@ Enable additional services with `--profile`:
 # UI Testing (Selenium + WebDriver agent)
 docker-compose --env-file local.env --profile ui-test up -d
 
-# Security Scanner Agent
+# Security Scanner Agent (core: nmap, nikto, sqlmap, nuclei, trivy, kubectl)
 docker-compose --env-file local.env --profile scanner up -d
+
+# Scanner with OWASP ZAP (web app security scanning)
+docker-compose --env-file local.env --profile scanner-zap up -d
+
+# Scanner with Artillery (performance/load testing)
+docker-compose --env-file local.env --profile scanner-artillery up -d
 
 # S3 Storage (MinIO)
 docker-compose --env-file local.env --profile storage up -d
@@ -58,7 +64,7 @@ docker-compose --env-file local.env --profile storage up -d
 docker-compose --env-file local.env --profile target up -d
 
 # All profiles
-docker-compose --env-file local.env --profile scanner --profile ui-test --profile storage --profile target up -d
+docker-compose --env-file local.env --profile scanner --profile scanner-zap --profile scanner-artillery --profile ui-test --profile storage --profile target up -d
 ```
 
 ### Scanner Agent Setup
@@ -110,5 +116,7 @@ All images are hosted on Docker Hub under `softknife/`:
 
 - `softknife/cloud-security-agent` - Backend API
 - `softknife/cloud-security-ui` - Web UI
-- `softknife/cloud-security-scanner` - Scanner agent
+- `softknife/cloud-security-scanner` - Core scanner agent (235 MB)
+- `softknife/cloud-security-scanner-zap` - Scanner + OWASP ZAP (654 MB)
+- `softknife/cloud-security-scanner-artillery` - Scanner + Artillery (610 MB)
 - `softknife/cloud-security-ui-test-agent` - UI test agent
