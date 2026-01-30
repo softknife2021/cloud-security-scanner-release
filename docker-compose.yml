@@ -1,7 +1,6 @@
-# Docker Compose for pulling pre-built images from Docker Hub
-# Usage: docker-compose -f docker-compose.hub.yml --env-file local.env up -d
+# Cloud Security Scanner - Docker Compose
+# Usage: docker-compose --env-file local.env up -d
 #
-# This file is for users who want to try the application without building locally.
 # Images are pulled from Docker Hub: softknife/cloud-security-*
 
 services:
