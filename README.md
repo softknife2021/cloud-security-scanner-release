@@ -14,14 +14,19 @@ A cloud-native security scanning platform with a web UI for managing vulnerabili
 git clone https://github.com/softknife2021/cloud-security-scanner-release.git
 cd cloud-security-scanner-release
 
-# 2. Start core services (backend + UI + database)
-docker-compose --env-file local.env up -d
+# 2. Start everything (handles JWT tokens, health checks, all services)
+./scripts/start-all.sh
+```
 
-# 3. Wait for services to be healthy (~60 seconds)
-docker ps
+Open http://localhost:3000 and login with `admin` / `admin123`
 
-# 4. Open the UI
-open http://localhost:3000
+### Start Options
+
+```bash
+./scripts/start-all.sh              # Everything (all profiles)
+./scripts/start-all.sh core         # Just database + backend + UI
+./scripts/start-all.sh scanners     # Core + all scanner agents
+./scripts/start-all.sh ui-test      # Core + Selenium + UI test agent
 ```
 
 ## Default Credentials
@@ -69,18 +74,15 @@ docker-compose --env-file local.env --profile scanner --profile scanner-zap --pr
 
 ### Scanner Agent Setup
 
-The scanner agent needs a JWT token to authenticate with the backend:
+`start-all.sh` handles JWT token generation and scanner startup automatically. For manual setup:
 
 ```bash
-# 1. Get a token
-curl -s http://localhost:8080/api/auth/login -X POST \
+# Get a token and start scanner
+TOKEN=$(curl -s http://localhost:8080/api/auth/login -X POST \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])"
+  -d '{"username": "admin", "password": "admin123"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
 
-# 2. Set SCANNER_JWT_TOKEN in local.env with the token value
-
-# 3. Start the scanner agent
-docker-compose --env-file local.env --profile scanner up -d scanner-agent
+SCANNER_JWT_TOKEN=$TOKEN docker-compose --env-file local.env --profile scanner up -d
 ```
 
 ### UI Testing
