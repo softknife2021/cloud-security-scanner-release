@@ -4006,3 +4006,19 @@ SELECT pg_catalog.setval('public.environments_id_seq', 3, true);
 SELECT pg_catalog.setval('public.project_applications_id_seq', 2, true);
 SELECT pg_catalog.setval('public.projects_id_seq', 1, true);
 SELECT pg_catalog.setval('public.scan_template_id_seq', 80, true);
+
+-- ============================================
+-- Default Users (passwords are BCrypt hashed)
+-- admin/admin123, analyst/analyst123, viewer/viewer123
+-- ============================================
+INSERT INTO public.users (id, username, email, password, full_name, enabled, account_locked, created_at, updated_at) VALUES
+(1, 'admin', 'admin@cloud-security.local', '$2b$10$Wl.hOgXg/wYMoJOEeCwFrOTN6SxZx6Z2z7rAShy4H0UxdOg.aBvC6', 'Admin User', true, false, NOW(), NOW()),
+(2, 'analyst', 'analyst@cloud-security.local', '$2b$10$HLR.YMfLnyZp364IklldIeam9ojdZDnhOvnGlbbkgRp2ENqpOSBIG', 'Analyst User', true, false, NOW(), NOW()),
+(3, 'viewer', 'viewer@cloud-security.local', '$2b$10$Mz3oMp9qC447oIES.egSCOofBMzKuUWrZciDWaPEVmeMzQwZEXI8y', 'Viewer User', true, false, NOW(), NOW());
+
+INSERT INTO public.user_roles (user_id, role) VALUES
+(1, 'ADMIN'), (1, 'ANALYST'), (1, 'VIEWER'),
+(2, 'ANALYST'), (2, 'VIEWER'),
+(3, 'VIEWER');
+
+SELECT pg_catalog.setval('public.users_id_seq', 3, true);
