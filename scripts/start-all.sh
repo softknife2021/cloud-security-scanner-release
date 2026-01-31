@@ -11,6 +11,8 @@
 #   ./scripts/start-all.sh core         # Just postgres + backend + UI
 #   ./scripts/start-all.sh scanners     # Core + all scanner agents
 #   ./scripts/start-all.sh ui-test      # Core + selenium + ui-test-agent
+#   ./scripts/start-all.sh --fresh      # Wipe DB and re-init from 01-init.sql
+#   ./scripts/start-all.sh --fresh all  # Fresh DB + all profiles
 #
 # =============================================================================
 
@@ -29,7 +31,17 @@ COMPOSE_FILE="docker-compose.yml"
 ENV_FILE="local.env"
 API_PORT="${APP_PORT:-8080}"
 API_URL="http://localhost:${API_PORT}"
-MODE="${1:-all}"
+FRESH_DB=false
+
+# Parse arguments
+MODE="all"
+for arg in "$@"; do
+    case "$arg" in
+        --fresh) FRESH_DB=true ;;
+        core|scanners|ui-test|all) MODE="$arg" ;;
+        *) echo -e "${RED}Unknown argument: $arg${NC}"; exit 1 ;;
+    esac
+done
 
 # All known container names (for cleanup)
 CONTAINERS=(
@@ -59,6 +71,7 @@ echo "=============================================="
 echo -e "${NC}"
 echo -e "  Mode:     ${BOLD}${MODE}${NC}"
 echo -e "  Compose:  ${COMPOSE_FILE}"
+[ "$FRESH_DB" = true ] && echo -e "  Fresh DB: ${YELLOW}yes (volumes will be wiped)${NC}"
 echo ""
 
 # =============================================================================
@@ -115,8 +128,14 @@ echo -e "  ${GREEN}Volumes managed by compose${NC}"
 echo -e "${YELLOW}[4/8]${NC} Cleaning up old containers..."
 
 # Try compose down first (catches compose-managed containers)
-docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
-    $ALL_PROFILES down --remove-orphans 2>/dev/null || true
+if [ "$FRESH_DB" = true ]; then
+    echo -e "  ${YELLOW}--fresh: Removing database volume for clean init${NC}"
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
+        $ALL_PROFILES down --remove-orphans -v 2>/dev/null || true
+else
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
+        $ALL_PROFILES down --remove-orphans 2>/dev/null || true
+fi
 
 # Force-remove any leftover containers by name
 for container in "${CONTAINERS[@]}"; do
@@ -139,9 +158,18 @@ case "$MODE" in
 esac
 
 # =============================================================================
+# Step 5b: Pull latest images
+# =============================================================================
+echo -e "${YELLOW}[5/9]${NC} Pulling latest images..."
+
+docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
+    $PROFILES pull 2>&1 | grep -v "^$" || true
+echo -e "  ${GREEN}Images up to date${NC}"
+
+# =============================================================================
 # Step 6: Start core services
 # =============================================================================
-echo -e "${YELLOW}[5/8]${NC} Starting core services (postgres, backend, UI)..."
+echo -e "${YELLOW}[6/9]${NC} Starting core services (postgres, backend, UI)..."
 
 docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d \
     postgres security-agent security-agent-ui 2>&1 | grep -v "^$" || true
@@ -149,7 +177,7 @@ docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d \
 # =============================================================================
 # Step 7: Wait for backend
 # =============================================================================
-echo -e "${YELLOW}[6/8]${NC} Waiting for backend to be healthy..."
+echo -e "${YELLOW}[7/9]${NC} Waiting for backend to be healthy..."
 
 MAX_WAIT=90
 ELAPSED=0
@@ -177,7 +205,7 @@ fi
 # Step 8: Get JWT token and start profiles
 # =============================================================================
 if [ -n "$PROFILES" ]; then
-    echo -e "${YELLOW}[7/8]${NC} Getting JWT token for scanner agents..."
+    echo -e "${YELLOW}[8/9]${NC} Getting JWT token for scanner agents..."
 
     RESPONSE=$(curl -s "$API_URL/api/auth/login" \
         -X POST \
@@ -194,13 +222,13 @@ if [ -n "$PROFILES" ]; then
         echo -e "  ${GREEN}Token obtained (${#TOKEN} chars)${NC}"
     fi
 
-    echo -e "${YELLOW}[8/8]${NC} Starting profile services (${MODE})..."
+    echo -e "${YELLOW}[9/9]${NC} Starting profile services (${MODE})..."
 
     SCANNER_JWT_TOKEN="${TOKEN:-}" docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
         $PROFILES up -d 2>&1 | grep -v "^$" || true
 else
-    echo -e "${YELLOW}[7/8]${NC} Skipping scanner token (core mode)"
-    echo -e "${YELLOW}[8/8]${NC} No profiles to start (core mode)"
+    echo -e "${YELLOW}[8/9]${NC} Skipping scanner token (core mode)"
+    echo -e "${YELLOW}[9/9]${NC} No profiles to start (core mode)"
 fi
 
 # =============================================================================
