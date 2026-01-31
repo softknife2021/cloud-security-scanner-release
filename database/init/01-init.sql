@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict DRf3xnvGINVioGzQ3c3eMCRUA6MaWsvQ583ZmkocHvTVy3WPk6M97XG2uDRwauD
+\restrict VtHgjKLnNxCO6jtchH2Ru3vf5b2XL9hJZdwvcfRIzBCsNMKDZK6sIWkBnCBTXjq
 
 -- Dumped from database version 14.20
 -- Dumped by pg_dump version 14.20
@@ -1661,7 +1661,8 @@ CREATE TABLE public.scan_job (
     version bigint DEFAULT 0,
     performance_scenario_id bigint,
     api_scenario_id bigint,
-    ui_test_id bigint
+    ui_test_id bigint,
+    ui_test_suite_id bigint
 );
 
 
@@ -1978,7 +1979,10 @@ CREATE TABLE public.ui_test (
     created_by character varying(100),
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    version integer DEFAULT 0
+    version integer DEFAULT 0,
+    group_name character varying(100),
+    feature character varying(255),
+    tested_version character varying(100)
 );
 
 
@@ -1999,6 +2003,78 @@ CREATE SEQUENCE public.ui_test_id_seq
 --
 
 ALTER SEQUENCE public.ui_test_id_seq OWNED BY public.ui_test.id;
+
+
+--
+-- Name: ui_test_suite; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ui_test_suite (
+    id bigint NOT NULL,
+    name character varying(255) NOT NULL,
+    description text,
+    project_id bigint NOT NULL,
+    reuse_browser boolean DEFAULT false,
+    status character varying(50) DEFAULT 'ACTIVE'::character varying,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    created_by character varying(100),
+    updated_by character varying(100),
+    version integer DEFAULT 0
+);
+
+
+--
+-- Name: ui_test_suite_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.ui_test_suite_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: ui_test_suite_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.ui_test_suite_id_seq OWNED BY public.ui_test_suite.id;
+
+
+--
+-- Name: ui_test_suite_item; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ui_test_suite_item (
+    id bigint NOT NULL,
+    suite_id bigint NOT NULL,
+    ui_test_id bigint NOT NULL,
+    sort_order integer DEFAULT 0,
+    weight integer DEFAULT 1,
+    is_active boolean DEFAULT true,
+    target_id bigint
+);
+
+
+--
+-- Name: ui_test_suite_item_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.ui_test_suite_item_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: ui_test_suite_item_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.ui_test_suite_item_id_seq OWNED BY public.ui_test_suite_item.id;
 
 
 --
@@ -2259,6 +2335,20 @@ ALTER TABLE ONLY public.scan_template ALTER COLUMN id SET DEFAULT nextval('publi
 --
 
 ALTER TABLE ONLY public.ui_test ALTER COLUMN id SET DEFAULT nextval('public.ui_test_id_seq'::regclass);
+
+
+--
+-- Name: ui_test_suite id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ui_test_suite ALTER COLUMN id SET DEFAULT nextval('public.ui_test_suite_id_seq'::regclass);
+
+
+--
+-- Name: ui_test_suite_item id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ui_test_suite_item ALTER COLUMN id SET DEFAULT nextval('public.ui_test_suite_item_id_seq'::regclass);
 
 
 --
@@ -3799,7 +3889,9 @@ INSERT INTO public.environment_targets VALUES (2, 1, 'httpbin', 'https://httpbin
 INSERT INTO public.environment_targets VALUES (3, 1, 'Acunetix Test PHP', 'http://testphp.vulnweb.com', NULL, NULL, '{"description": "Acunetix vulnerable web app for SQLMap testing", "testEndpoint": "/page.php?id=1"}', true, '2026-01-17 22:02:35.453711', '2026-01-17 22:02:35.453716', NULL, 'testphp.vulnweb.com', 80, 'http', NULL, 'WEB_APP', NULL, NULL, 'http://testphp.vulnweb.com', NULL, NULL, NULL, NULL, 0, NULL, NULL, '{}');
 INSERT INTO public.environment_targets VALUES (4, 1, 'testhtml5.vulnweb.com', '', '', '', '{}', true, '2026-01-22 19:58:42.395054', '2026-01-22 19:58:42.395056', '{}', '', NULL, 'https', '', 'WEB_APP', '', '', 'http://testhtml5.vulnweb.com', '', '', '', '', 0, NULL, NULL, '{}');
 INSERT INTO public.environment_targets VALUES (6, 1, 'Lingo', NULL, NULL, NULL, NULL, true, '2026-01-29 02:18:41.223858', '2026-01-29 02:18:41.223861', NULL, NULL, NULL, 'https', NULL, 'WEB_APP', NULL, NULL, 'https://lingo.com', NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL);
-INSERT INTO public.environment_targets VALUES (5, 1, 'SauceDemo', NULL, NULL, NULL, '{"tags": ["webdriver", "selenium", "demo", "e-commerce"], "features": ["login", "shopping cart", "checkout", "inventory"], "description": "Sauce Labs demo e-commerce site for WebDriver testing"}', true, '2026-01-27 03:37:18.519145', '2026-01-30 17:22:42.552438', '{"authType": "form", "loginUrl": "https://www.saucedemo.com", "password": "ENC:cu7k3Fw7gmHsJc8BWOPS9d9btQCnggHg1S9ITsrSfi4vzmUTRmQLzA==", "username": "standard_user", "submitButton": "#login-button", "passwordField": "ENC:H1fFXe0qCOxWTmu0chs61RiIQt93nv0nTpir5Z82YTPJAXaDsg==", "usernameField": "#user-name", "alternateUsers": {"problem_user": "secret_sauce", "locked_out_user": "secret_sauce", "performance_glitch_user": "secret_sauce"}}', 'www.saucedemo.com', 443, 'https', NULL, 'WEB_APP', NULL, NULL, 'https://www.saucedemo.com', NULL, NULL, NULL, NULL, 0, NULL, NULL, '{"urlDataAttributes": ["data-href", "data-link"], "urlExtractionPatterns": [{"idPattern": "item_(\\d+)_title_link", "urlTemplate": "/inventory-item.html?id=$1"}]}');
+INSERT INTO public.environment_targets VALUES (5, 1, 'SauceDemo', NULL, NULL, NULL, '{"tags": ["webdriver", "selenium", "demo", "e-commerce"], "features": ["login", "shopping cart", "checkout", "inventory"], "description": "Sauce Labs demo e-commerce site for WebDriver testing"}', true, '2026-01-27 03:37:18.519145', '2026-01-30 21:51:22.756641', '{"authType": "form", "loginUrl": "https://www.saucedemo.com", "password": "ENC:xuJ342EqSVs/7uHk9acSw16SRt+0cEyVgc8HuReOBCAuU5lRKK+Npg==", "username": "standard_user", "submitButton": "#login-button", "passwordField": "ENC:yjqBqCOL/zIIaUjDwM3eVwg6MJcww71wGfWyFo3BkmudL/2fUg==", "usernameField": "#user-name", "alternateUsers": {"problem_user": "secret_sauce", "locked_out_user": "secret_sauce", "performance_glitch_user": "secret_sauce"}}', 'www.saucedemo.com', 443, 'https', NULL, 'WEB_APP', NULL, NULL, 'https://www.saucedemo.com', NULL, NULL, NULL, NULL, 0, NULL, NULL, '{"urlDataAttributes": ["data-href", "data-link"], "urlExtractionPatterns": [{"idPattern": "item_(\\d+)_title_link", "urlTemplate": "/inventory-item.html?id=$1"}]}');
+INSERT INTO public.environment_targets VALUES (7, 2, 'SauceDemo', NULL, NULL, NULL, NULL, true, '2026-01-31 03:55:41.091196', '2026-01-31 03:55:41.091197', NULL, 'www.saucedemo.com', 443, 'https', NULL, 'WEB_APP', NULL, NULL, 'https://www.saucedemo.com', NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL);
+INSERT INTO public.environment_targets VALUES (8, 2, 'Walmart', NULL, NULL, NULL, NULL, true, '2026-01-31 05:25:12.360272', '2026-01-31 05:25:12.360276', NULL, 'www.walmart.com', 443, 'https', NULL, 'WEB_APP', NULL, NULL, 'https://www.walmart.com', NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL);
 
 
 --
@@ -3989,7 +4081,7 @@ steps:
   - action: VALIDATE_TITLE
     expected: Google
   - action: TAKE_SCREENSHOT
-', NULL, 'smoke,demo', 'ACTIVE', 'admin', '2026-01-24 07:55:36.48805', '2026-01-24 07:55:36.488055', 0);
+', NULL, 'smoke,demo', 'ACTIVE', 'admin', '2026-01-24 07:55:36.48805', '2026-01-24 07:55:36.488055', 0, NULL, NULL, NULL);
 INSERT INTO public.ui_test VALUES (2, 'OneCloudPlanet - Navigation & Contact Form', 'End-to-end test: validates homepage load, page navigation (prices, about, contacts), contact form fill, expansion panels, and footer links', NULL, 'name: OneCloudPlanet - Navigation & Contact Form
 description: Validates homepage, navigation, and contact form
 
@@ -4081,7 +4173,7 @@ tests:
         xpath: "//a[contains(text(), ''Site Map'')]"
 
       - action: TAKE_SCREENSHOT
-', '[{"semanticName": "search_input", "tag": "input", "id": "input-23", "cssSelector": "#input-23", "type": "text"}, {"semanticName": "promo_banner", "tag": "a", "cssSelector": "a.custom-underline.d-sm-none.d-block.text-white"}, {"semanticName": "contact_name", "tag": "input", "id": "input-50", "cssSelector": "#input-50", "type": "text"}, {"semanticName": "contact_email", "tag": "input", "id": "input-54", "cssSelector": "#input-54", "type": "text"}, {"semanticName": "contact_phone", "tag": "input", "id": "input-57", "cssSelector": "#input-57", "type": "text"}, {"semanticName": "contact_message", "tag": "input", "id": "input-59", "cssSelector": "#input-59", "type": "text"}, {"semanticName": "submit_button", "tag": "button", "cssSelector": "button.primary-blue-btn[type=submit]", "type": "submit"}, {"semanticName": "expansion_panel", "tag": "button", "cssSelector": "button.v-expansion-panel-title", "type": "button"}, {"semanticName": "site_map_link", "tag": "a", "xpath": "//a[contains(text(), ''Site Map'')]"}, {"semanticName": "phone_link", "tag": "a", "cssSelector": "a[href*=tel]"}, {"semanticName": "email_link", "tag": "a", "cssSelector": "a[href*=mailto]"}]', 'smoke, navigation, contact-form, e2e', 'ACTIVE', 'admin', '2026-01-24 09:32:07.626846', '2026-01-26 02:23:29.299282', 8);
+', '[{"semanticName": "search_input", "tag": "input", "id": "input-23", "cssSelector": "#input-23", "type": "text"}, {"semanticName": "promo_banner", "tag": "a", "cssSelector": "a.custom-underline.d-sm-none.d-block.text-white"}, {"semanticName": "contact_name", "tag": "input", "id": "input-50", "cssSelector": "#input-50", "type": "text"}, {"semanticName": "contact_email", "tag": "input", "id": "input-54", "cssSelector": "#input-54", "type": "text"}, {"semanticName": "contact_phone", "tag": "input", "id": "input-57", "cssSelector": "#input-57", "type": "text"}, {"semanticName": "contact_message", "tag": "input", "id": "input-59", "cssSelector": "#input-59", "type": "text"}, {"semanticName": "submit_button", "tag": "button", "cssSelector": "button.primary-blue-btn[type=submit]", "type": "submit"}, {"semanticName": "expansion_panel", "tag": "button", "cssSelector": "button.v-expansion-panel-title", "type": "button"}, {"semanticName": "site_map_link", "tag": "a", "xpath": "//a[contains(text(), ''Site Map'')]"}, {"semanticName": "phone_link", "tag": "a", "cssSelector": "a[href*=tel]"}, {"semanticName": "email_link", "tag": "a", "cssSelector": "a[href*=mailto]"}]', 'smoke, navigation, contact-form, e2e', 'ACTIVE', 'admin', '2026-01-24 09:32:07.626846', '2026-01-26 02:23:29.299282', 8, NULL, NULL, NULL);
 INSERT INTO public.ui_test VALUES (3, 'SauceDemo Login and Shopping Flow', 'Tests login, product browsing, add to cart, and checkout on SauceDemo', 1, 'name: SauceDemo Login and Shopping Flow
 description: Complete e-commerce test flow
 
@@ -4195,7 +4287,7 @@ steps:
 
   - action: TAKE_SCREENSHOT
     prefix: order-complete
-', '[{"semanticName":"usernameField","tag":"input","id":"user-name","cssSelector":"#user-name","type":"text"},{"semanticName":"passwordField","tag":"input","id":"password","cssSelector":"#password","type":"password"},{"semanticName":"loginButton","tag":"input","id":"login-button","cssSelector":"#login-button","type":"submit"},{"semanticName":"inventoryList","tag":"div","cssSelector":".inventory_list"},{"semanticName":"addBackpackToCart","tag":"button","cssSelector":"[data-test=''add-to-cart-sauce-labs-backpack'']"},{"semanticName":"cartBadge","tag":"span","cssSelector":".shopping_cart_badge"},{"semanticName":"cartLink","tag":"a","cssSelector":"#shopping_cart_container a"},{"semanticName":"cartContents","tag":"div","id":"cart_contents_container","cssSelector":"#cart_contents_container"},{"semanticName":"cartItem","tag":"div","cssSelector":".cart_item"},{"semanticName":"checkoutButton","tag":"button","id":"checkout","cssSelector":"#checkout"},{"semanticName":"firstNameField","tag":"input","id":"first-name","cssSelector":"#first-name"},{"semanticName":"lastNameField","tag":"input","id":"last-name","cssSelector":"#last-name"},{"semanticName":"postalCodeField","tag":"input","id":"postal-code","cssSelector":"#postal-code"},{"semanticName":"continueButton","tag":"input","id":"continue","cssSelector":"#continue"},{"semanticName":"finishButton","tag":"button","id":"finish","cssSelector":"#finish"},{"semanticName":"completeHeader","tag":"h2","cssSelector":".complete-header"}]', 'saucedemo, e-commerce, login, checkout, smoke', 'ACTIVE', 'admin', '2026-01-27 04:15:33.609375', '2026-01-27 04:24:21.755881', 1);
+', '[{"semanticName":"usernameField","tag":"input","id":"user-name","cssSelector":"#user-name","type":"text"},{"semanticName":"passwordField","tag":"input","id":"password","cssSelector":"#password","type":"password"},{"semanticName":"loginButton","tag":"input","id":"login-button","cssSelector":"#login-button","type":"submit"},{"semanticName":"inventoryList","tag":"div","cssSelector":".inventory_list"},{"semanticName":"addBackpackToCart","tag":"button","cssSelector":"[data-test=''add-to-cart-sauce-labs-backpack'']"},{"semanticName":"cartBadge","tag":"span","cssSelector":".shopping_cart_badge"},{"semanticName":"cartLink","tag":"a","cssSelector":"#shopping_cart_container a"},{"semanticName":"cartContents","tag":"div","id":"cart_contents_container","cssSelector":"#cart_contents_container"},{"semanticName":"cartItem","tag":"div","cssSelector":".cart_item"},{"semanticName":"checkoutButton","tag":"button","id":"checkout","cssSelector":"#checkout"},{"semanticName":"firstNameField","tag":"input","id":"first-name","cssSelector":"#first-name"},{"semanticName":"lastNameField","tag":"input","id":"last-name","cssSelector":"#last-name"},{"semanticName":"postalCodeField","tag":"input","id":"postal-code","cssSelector":"#postal-code"},{"semanticName":"continueButton","tag":"input","id":"continue","cssSelector":"#continue"},{"semanticName":"finishButton","tag":"button","id":"finish","cssSelector":"#finish"},{"semanticName":"completeHeader","tag":"h2","cssSelector":".complete-header"}]', 'saucedemo, e-commerce, login, checkout, smoke', 'ACTIVE', 'admin', '2026-01-27 04:15:33.609375', '2026-01-27 04:24:21.755881', 1, NULL, NULL, NULL);
 INSERT INTO public.ui_test VALUES (4, 'Lingo - Page Navigation & Screenshots', 'Navigate key Lingo pages, validate titles and capture screenshots', 1, 'name: Lingo - Page Navigation & Screenshots
 description: Navigate key Lingo pages, validate titles and capture screenshots
 config:
@@ -4252,7 +4344,369 @@ steps:
     expected: "About \u2013 Phone, Cloud, Broadband, Security and Managed Services for Businesses | Lingo"
 
   - action: TAKE_SCREENSHOT
-', NULL, 'development', 'ACTIVE', 'admin', '2026-01-29 03:30:37.785828', '2026-01-29 04:06:49.689142', 2);
+', NULL, 'development', 'ACTIVE', 'admin', '2026-01-29 03:30:37.785828', '2026-01-29 04:06:49.689142', 2, NULL, NULL, NULL);
+INSERT INTO public.ui_test VALUES (5, 'SauceDemo - Login & Inventory Assertions', 'Validates login flow and inventory page elements', 1, 'name: SauceDemo - Login & Inventory Assertions
+description: Validates login flow and inventory page elements
+
+config:
+  timeout: 30
+  screenshotOnFailure: true
+  continueOnFailure: true
+
+variables:
+  baseUrl: https://www.saucedemo.com
+  username: standard_user
+  password: secret_sauce
+
+steps:
+  - action: NAVIGATE_TO
+    url: ${baseUrl}
+
+  - action: VALIDATE_TITLE
+    expected: "Swag Labs"
+
+  - action: WAIT_FOR_VISIBLE
+    css: "#user-name"
+    timeout: 10
+
+  - action: VALIDATE_VISIBLE
+    css: "#login-button"
+
+  - action: TAKE_SCREENSHOT
+    prefix: login-page
+
+  - action: SEND_KEYS
+    css: "#user-name"
+    value: ${username}
+
+  - action: SEND_KEYS
+    css: "#password"
+    value: ${password}
+
+  - action: CLICK
+    css: "#login-button"
+
+  - action: WAIT_FOR_VISIBLE
+    css: ".inventory_list"
+    timeout: 10
+
+  - action: VALIDATE_URL
+    expected: ${baseUrl}/inventory.html
+
+  - action: VALIDATE_TITLE
+    expected: "Swag Labs"
+
+  - action: VALIDATE_VISIBLE
+    css: ".header_secondary_container .title"
+
+  - action: VALIDATE_TEXT
+    css: ".header_secondary_container .title"
+    expected: "Products"
+
+  - action: VALIDATE_VISIBLE
+    css: "[data-test=''add-to-cart-sauce-labs-backpack'']"
+
+  - action: TAKE_SCREENSHOT
+    prefix: inventory-verified
+', NULL, NULL, 'ACTIVE', 'admin', '2026-01-31 03:58:17.424146', '2026-01-31 03:58:17.424147', 0, 'SauceDemo Demo', 'Login & Inventory', NULL);
+INSERT INTO public.ui_test VALUES (6, 'SauceDemo - Cart & Product Detail', 'Tests product detail navigation and cart functionality', 1, 'name: SauceDemo - Cart & Product Detail
+description: Tests product detail navigation and cart functionality
+
+config:
+  timeout: 30
+  screenshotOnFailure: true
+  continueOnFailure: true
+
+variables:
+  baseUrl: https://www.saucedemo.com
+  username: standard_user
+  password: secret_sauce
+
+steps:
+  - action: NAVIGATE_TO
+    url: ${baseUrl}
+
+  - action: WAIT_FOR_VISIBLE
+    css: "#user-name"
+    timeout: 10
+
+  - action: SEND_KEYS
+    css: "#user-name"
+    value: ${username}
+
+  - action: SEND_KEYS
+    css: "#password"
+    value: ${password}
+
+  - action: CLICK
+    css: "#login-button"
+
+  - action: WAIT_FOR_VISIBLE
+    css: ".inventory_list"
+    timeout: 10
+
+  - action: CLICK
+    css: "#item_4_title_link"
+
+  - action: WAIT_FOR_VISIBLE
+    css: ".inventory_details_name"
+    timeout: 10
+
+  - action: VALIDATE_TEXT
+    css: ".inventory_details_name"
+    expected: "Sauce Labs Backpack"
+
+  - action: VALIDATE_VISIBLE
+    css: ".inventory_details_price"
+
+  - action: TAKE_SCREENSHOT
+    prefix: product-detail
+
+  - action: CLICK
+    css: "[data-test=''add-to-cart'']"
+
+  - action: VALIDATE_TEXT
+    css: ".shopping_cart_badge"
+    expected: "1"
+
+  - action: CLICK
+    css: "#shopping_cart_container a"
+
+  - action: WAIT_FOR_VISIBLE
+    css: ".cart_item"
+    timeout: 10
+
+  - action: VALIDATE_TEXT
+    css: ".cart_quantity"
+    expected: "1"
+
+  - action: VALIDATE_TEXT
+    css: ".inventory_item_name"
+    expected: "Sauce Labs Backpack"
+
+  - action: TAKE_SCREENSHOT
+    prefix: cart-verified
+', NULL, NULL, 'ACTIVE', 'admin', '2026-01-31 03:58:17.438967', '2026-01-31 03:58:17.438968', 0, 'SauceDemo Demo', 'Cart & Products', NULL);
+INSERT INTO public.ui_test VALUES (7, 'SauceDemo - Title Regression (WILL FAIL)', 'Intentionally wrong assertions to demonstrate failure reporting', 1, 'name: SauceDemo - Page Title Regression (WILL FAIL)
+description: Regression test with intentionally wrong title assertion to demo failure
+
+config:
+  timeout: 30
+  screenshotOnFailure: true
+  continueOnFailure: true
+
+variables:
+  baseUrl: https://www.saucedemo.com
+  username: standard_user
+  password: secret_sauce
+
+steps:
+  - action: NAVIGATE_TO
+    url: ${baseUrl}
+
+  - action: VALIDATE_TITLE
+    expected: "Swag Labs"
+
+  - action: WAIT_FOR_VISIBLE
+    css: "#user-name"
+    timeout: 10
+
+  - action: SEND_KEYS
+    css: "#user-name"
+    value: ${username}
+
+  - action: SEND_KEYS
+    css: "#password"
+    value: ${password}
+
+  - action: CLICK
+    css: "#login-button"
+
+  - action: WAIT_FOR_VISIBLE
+    css: ".inventory_list"
+    timeout: 10
+
+  - action: TAKE_SCREENSHOT
+    prefix: before-wrong-assertion
+
+  # INTENTIONAL FAILURE: title is "Swag Labs" not "Amazon Store"
+  - action: VALIDATE_TITLE
+    expected: "Amazon Store"
+
+  # INTENTIONAL FAILURE: products heading says "Products" not "Shop All Items"
+  - action: VALIDATE_TEXT
+    css: ".header_secondary_container .title"
+    expected: "Shop All Items"
+
+  - action: TAKE_SCREENSHOT
+    prefix: after-wrong-assertion
+', NULL, NULL, 'ACTIVE', 'admin', '2026-01-31 03:58:17.450754', '2026-01-31 03:58:17.450755', 0, 'SauceDemo Demo', 'Regression', NULL);
+INSERT INTO public.ui_test VALUES (8, 'Walmart - Grocery Navigation & Assertions', 'Navigate from homepage to Departments then Grocery page, verify page title and key elements', 1, 'name: Walmart - Grocery Navigation & Assertions
+description: Navigate to Departments > Groceries page and validate title, heading, elements
+
+config:
+  timeout: 30
+  screenshotOnFailure: true
+  continueOnFailure: true
+
+variables:
+  baseUrl: ""
+
+steps:
+  - action: NAVIGATE_TO
+    url: ${baseUrl}
+
+  - action: VALIDATE_TITLE
+    expected: "Walmart | Save Money. Live better."
+
+  - action: TAKE_SCREENSHOT
+    prefix: walmart-homepage
+
+  - action: WAIT_FOR_VISIBLE
+    css: "a[href*=''/all-departments''], a[href*=''departments'']"
+    timeout: 15
+
+  - action: NAVIGATE_TO
+    url: ${baseUrl}/all-departments
+
+  - action: WAIT_FOR_VISIBLE
+    css: "body"
+    timeout: 15
+
+  - action: TAKE_SCREENSHOT
+    prefix: all-departments
+
+  - action: NAVIGATE_TO
+    url: ${baseUrl}/browse/grocery/976759
+
+  - action: WAIT_FOR_VISIBLE
+    css: "body"
+    timeout: 15
+
+  - action: TAKE_SCREENSHOT
+    prefix: grocery-page
+
+  - action: VALIDATE_URL_CONTAINS
+    expected: "grocery"
+
+  - action: VALIDATE_ELEMENT_EXISTS
+    css: "header, [role=''banner'']"
+
+  - action: VALIDATE_ELEMENT_EXISTS
+    css: "nav, [role=''navigation'']"
+
+  - action: TAKE_SCREENSHOT
+    prefix: grocery-final
+', NULL, NULL, 'ACTIVE', 'admin', '2026-01-31 05:27:58.685722', '2026-01-31 05:27:58.685726', 0, 'Walmart Demo for Sachin', 'Navigation', NULL);
+INSERT INTO public.ui_test VALUES (9, 'Walmart - Pharmacy Services Page', 'Navigate to Services > Pharmacy page and validate title, headings, and key page elements', 1, 'name: Walmart - Pharmacy Services Page
+description: Navigate to Pharmacy page and validate title and page content
+
+config:
+  timeout: 30
+  screenshotOnFailure: true
+  continueOnFailure: true
+
+variables:
+  baseUrl: ""
+
+steps:
+  - action: NAVIGATE_TO
+    url: ${baseUrl}
+
+  - action: VALIDATE_TITLE
+    expected: "Walmart | Save Money. Live better."
+
+  - action: TAKE_SCREENSHOT
+    prefix: homepage-before-pharmacy
+
+  - action: NAVIGATE_TO
+    url: ${baseUrl}/cp/pharmacy/5431
+
+  - action: WAIT_FOR_VISIBLE
+    css: "body"
+    timeout: 15
+
+  - action: TAKE_SCREENSHOT
+    prefix: pharmacy-page
+
+  - action: VALIDATE_URL_CONTAINS
+    expected: "pharmacy"
+
+  - action: VALIDATE_ELEMENT_EXISTS
+    css: "header, [role=''banner'']"
+
+  - action: VALIDATE_ELEMENT_EXISTS
+    css: "img, svg"
+
+  - action: VALIDATE_ELEMENT_EXISTS
+    css: "footer, [role=''contentinfo'']"
+
+  - action: TAKE_SCREENSHOT
+    prefix: pharmacy-final
+', NULL, NULL, 'ACTIVE', 'admin', '2026-01-31 05:27:58.740502', '2026-01-31 05:27:58.740506', 0, 'Walmart Demo for Sachin', 'Services', NULL);
+INSERT INTO public.ui_test VALUES (10, 'Walmart - Intentional Failures (WILL FAIL)', 'Homepage assertions with intentionally wrong expected values to demonstrate failure reporting', 1, 'name: Walmart - Intentional Failures (WILL FAIL)
+description: Tests with deliberately wrong assertions to show failure reporting
+
+config:
+  timeout: 30
+  screenshotOnFailure: true
+  continueOnFailure: true
+
+variables:
+  baseUrl: ""
+
+steps:
+  - action: NAVIGATE_TO
+    url: ${baseUrl}
+
+  - action: WAIT_FOR_VISIBLE
+    css: "body"
+    timeout: 15
+
+  - action: TAKE_SCREENSHOT
+    prefix: before-wrong-assertions
+
+  # INTENTIONAL FAILURE: Title is ''Walmart | Save Money. Live better.'' not ''Target | Expect More. Pay Less.''
+  - action: VALIDATE_TITLE
+    expected: "Target | Expect More. Pay Less."
+
+  # INTENTIONAL FAILURE: This CSS selector does not exist on Walmart
+  - action: VALIDATE_ELEMENT_EXISTS
+    css: "#amazon-prime-banner"
+
+  - action: VALIDATE_ELEMENT_EXISTS
+    css: "header, [role=''banner'']"
+
+  - action: VALIDATE_URL_CONTAINS
+    expected: "walmart.com"
+
+  - action: TAKE_SCREENSHOT
+    prefix: after-wrong-assertions
+', NULL, NULL, 'ACTIVE', 'admin', '2026-01-31 05:27:58.799677', '2026-01-31 05:27:58.79968', 0, 'Walmart Demo for Sachin', 'Regression', NULL);
+
+
+--
+-- Data for Name: ui_test_suite; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.ui_test_suite VALUES (1, 'suite 1', 'suite 1', 1, false, 'ACTIVE', '2026-01-30 22:26:44.139111', '2026-01-30 23:15:39.330218', 'admin', 'admin', 1);
+INSERT INTO public.ui_test_suite VALUES (2, 'SauceDemo Staging Demo Suite', 'Demo suite: login assertions, cart flow, and intentional failure', 1, false, 'ACTIVE', '2026-01-31 03:58:47.942721', '2026-01-31 03:58:47.942723', 'admin', NULL, 0);
+INSERT INTO public.ui_test_suite VALUES (3, 'Walmart demo Sachin', 'Demo test suite for Walmart.com - Navigation, Services, and Regression tests', 1, false, 'ACTIVE', '2026-01-31 05:28:22.199986', '2026-01-31 05:28:22.199997', 'admin', NULL, 0);
+
+
+--
+-- Data for Name: ui_test_suite_item; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.ui_test_suite_item VALUES (10, 1, 4, 0, 1, true, NULL);
+INSERT INTO public.ui_test_suite_item VALUES (11, 1, 3, 1, 1, true, NULL);
+INSERT INTO public.ui_test_suite_item VALUES (12, 1, 1, 2, 1, true, NULL);
+INSERT INTO public.ui_test_suite_item VALUES (13, 2, 5, 0, 1, true, 7);
+INSERT INTO public.ui_test_suite_item VALUES (14, 2, 6, 1, 1, true, 7);
+INSERT INTO public.ui_test_suite_item VALUES (15, 2, 7, 2, 1, true, 7);
+INSERT INTO public.ui_test_suite_item VALUES (16, 3, 8, 0, 1, true, 8);
+INSERT INTO public.ui_test_suite_item VALUES (17, 3, 9, 1, 1, true, 8);
+INSERT INTO public.ui_test_suite_item VALUES (18, 3, 10, 2, 1, true, 8);
 
 
 --
@@ -4268,7 +4722,7 @@ INSERT INTO public.user_roles VALUES (1, 'ANALYST', 0);
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.users VALUES (1, '2026-01-02 06:49:49.387', '2026-01-29 03:54:19.704', 'admin', 'admin@localhost', '$2a$10$.grjzh4ZC05E0VrVrLAbn.x9tAm5r.DSSuR8.4lTHbYjtEyASpsAm', 'Admin User', true, false, 1769794797241, 107);
+INSERT INTO public.users VALUES (1, '2026-01-02 06:49:49.387', '2026-01-29 03:54:19.704', 'admin', 'admin@localhost', '$2a$10$.grjzh4ZC05E0VrVrLAbn.x9tAm5r.DSSuR8.4lTHbYjtEyASpsAm', 'Admin User', true, false, 1769836252083, 107);
 
 
 --
@@ -4310,7 +4764,7 @@ SELECT pg_catalog.setval('public.api_payload_id_seq', 45, true);
 -- Name: api_scan_history_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.api_scan_history_id_seq', 13, true);
+SELECT pg_catalog.setval('public.api_scan_history_id_seq', 14, true);
 
 
 --
@@ -4352,7 +4806,7 @@ SELECT pg_catalog.setval('public.api_scenarios_id_seq', 14, true);
 -- Name: audit_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.audit_log_id_seq', 575, true);
+SELECT pg_catalog.setval('public.audit_log_id_seq', 591, true);
 
 
 --
@@ -4366,7 +4820,7 @@ SELECT pg_catalog.setval('public.custom_script_id_seq', 8, true);
 -- Name: environment_services_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.environment_services_id_seq', 6, true);
+SELECT pg_catalog.setval('public.environment_services_id_seq', 8, true);
 
 
 --
@@ -4443,14 +4897,14 @@ SELECT pg_catalog.setval('public.scan_group_templates_id_seq', 2, true);
 -- Name: scan_job_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.scan_job_id_seq', 212, true);
+SELECT pg_catalog.setval('public.scan_job_id_seq', 225, true);
 
 
 --
 -- Name: scan_job_item_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.scan_job_item_id_seq', 241, true);
+SELECT pg_catalog.setval('public.scan_job_item_id_seq', 256, true);
 
 
 --
@@ -4478,7 +4932,21 @@ SELECT pg_catalog.setval('public.scan_template_id_seq', 80, true);
 -- Name: ui_test_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.ui_test_id_seq', 4, true);
+SELECT pg_catalog.setval('public.ui_test_id_seq', 10, true);
+
+
+--
+-- Name: ui_test_suite_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.ui_test_suite_id_seq', 3, true);
+
+
+--
+-- Name: ui_test_suite_item_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.ui_test_suite_item_id_seq', 18, true);
 
 
 --
@@ -4830,6 +5298,30 @@ ALTER TABLE ONLY public.scan_template
 
 ALTER TABLE ONLY public.ui_test
     ADD CONSTRAINT ui_test_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ui_test_suite_item ui_test_suite_item_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ui_test_suite_item
+    ADD CONSTRAINT ui_test_suite_item_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ui_test_suite_item ui_test_suite_item_suite_id_ui_test_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ui_test_suite_item
+    ADD CONSTRAINT ui_test_suite_item_suite_id_ui_test_id_key UNIQUE (suite_id, ui_test_id);
+
+
+--
+-- Name: ui_test_suite ui_test_suite_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ui_test_suite
+    ADD CONSTRAINT ui_test_suite_pkey PRIMARY KEY (id);
 
 
 --
@@ -5624,6 +6116,13 @@ CREATE INDEX idx_scan_job_status ON public.scan_job USING btree (status);
 
 
 --
+-- Name: idx_scan_job_suite_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_scan_job_suite_id ON public.scan_job USING btree (ui_test_suite_id);
+
+
+--
 -- Name: idx_scan_job_target; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5712,6 +6211,41 @@ CREATE INDEX idx_sgt_order ON public.scan_group_templates USING btree (scan_grou
 --
 
 CREATE INDEX idx_sgt_template ON public.scan_group_templates USING btree (scan_template_id);
+
+
+--
+-- Name: idx_suite_item_target; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_suite_item_target ON public.ui_test_suite_item USING btree (target_id);
+
+
+--
+-- Name: idx_ui_test_feature; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ui_test_feature ON public.ui_test USING btree (feature);
+
+
+--
+-- Name: idx_ui_test_group_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ui_test_group_name ON public.ui_test USING btree (group_name);
+
+
+--
+-- Name: idx_ui_test_suite_item_suite; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ui_test_suite_item_suite ON public.ui_test_suite_item USING btree (suite_id);
+
+
+--
+-- Name: idx_ui_test_suite_project; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ui_test_suite_project ON public.ui_test_suite USING btree (project_id);
 
 
 --
@@ -6097,6 +6631,14 @@ ALTER TABLE ONLY public.scan_job
 
 
 --
+-- Name: scan_job scan_job_ui_test_suite_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.scan_job
+    ADD CONSTRAINT scan_job_ui_test_suite_id_fkey FOREIGN KEY (ui_test_suite_id) REFERENCES public.ui_test_suite(id) ON DELETE SET NULL;
+
+
+--
 -- Name: scan_preset scan_preset_scan_template_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6121,6 +6663,38 @@ ALTER TABLE ONLY public.ui_test
 
 
 --
+-- Name: ui_test_suite_item ui_test_suite_item_suite_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ui_test_suite_item
+    ADD CONSTRAINT ui_test_suite_item_suite_id_fkey FOREIGN KEY (suite_id) REFERENCES public.ui_test_suite(id) ON DELETE CASCADE;
+
+
+--
+-- Name: ui_test_suite_item ui_test_suite_item_target_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ui_test_suite_item
+    ADD CONSTRAINT ui_test_suite_item_target_id_fkey FOREIGN KEY (target_id) REFERENCES public.environment_targets(id) ON DELETE SET NULL;
+
+
+--
+-- Name: ui_test_suite_item ui_test_suite_item_ui_test_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ui_test_suite_item
+    ADD CONSTRAINT ui_test_suite_item_ui_test_id_fkey FOREIGN KEY (ui_test_id) REFERENCES public.ui_test(id) ON DELETE CASCADE;
+
+
+--
+-- Name: ui_test_suite ui_test_suite_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ui_test_suite
+    ADD CONSTRAINT ui_test_suite_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
+
+
+--
 -- Name: user_roles user_roles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6132,5 +6706,5 @@ ALTER TABLE ONLY public.user_roles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict DRf3xnvGINVioGzQ3c3eMCRUA6MaWsvQ583ZmkocHvTVy3WPk6M97XG2uDRwauD
+\unrestrict VtHgjKLnNxCO6jtchH2Ru3vf5b2XL9hJZdwvcfRIzBCsNMKDZK6sIWkBnCBTXjq
 
