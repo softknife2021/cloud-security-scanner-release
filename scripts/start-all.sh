@@ -220,11 +220,20 @@ if [ -n "$PROFILES" ]; then
         echo "  Continuing anyway..."
     else
         echo -e "  ${GREEN}Token obtained (${#TOKEN} chars)${NC}"
+
+        # Write token to local.env so docker-compose picks it up
+        if grep -q "^SCANNER_JWT_TOKEN=" "$ENV_FILE"; then
+            sed -i.bak "s|^SCANNER_JWT_TOKEN=.*|SCANNER_JWT_TOKEN=${TOKEN}|" "$ENV_FILE"
+            rm -f "${ENV_FILE}.bak"
+        else
+            echo "SCANNER_JWT_TOKEN=${TOKEN}" >> "$ENV_FILE"
+        fi
+        echo -e "  ${GREEN}Token saved to ${ENV_FILE}${NC}"
     fi
 
     echo -e "${YELLOW}[9/9]${NC} Starting profile services (${MODE})..."
 
-    SCANNER_JWT_TOKEN="${TOKEN:-}" docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
         $PROFILES up -d 2>&1 | grep -v "^$" || true
 else
     echo -e "${YELLOW}[8/9]${NC} Skipping scanner token (core mode)"

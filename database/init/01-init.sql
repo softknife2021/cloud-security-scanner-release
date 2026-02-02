@@ -3888,7 +3888,6 @@ INSERT INTO public.environment_targets VALUES (1, 1, 'petstore-api', 'https://pe
 INSERT INTO public.environment_targets VALUES (2, 1, 'httpbin', 'https://httpbin.org', NULL, NULL, '{"tags": ["testing", "http"], "description": "HTTP testing service"}', true, '2026-01-09 18:28:31.603661', '2026-01-09 18:28:31.603661', '{}', 'httpbin.org', 443, 'https', NULL, 'REST_SERVICE', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, '{}');
 INSERT INTO public.environment_targets VALUES (3, 1, 'Acunetix Test PHP', 'http://testphp.vulnweb.com', NULL, NULL, '{"description": "Acunetix vulnerable web app for SQLMap testing", "testEndpoint": "/page.php?id=1"}', true, '2026-01-17 22:02:35.453711', '2026-01-17 22:02:35.453716', NULL, 'testphp.vulnweb.com', 80, 'http', NULL, 'WEB_APP', NULL, NULL, 'http://testphp.vulnweb.com', NULL, NULL, NULL, NULL, 0, NULL, NULL, '{}');
 INSERT INTO public.environment_targets VALUES (4, 1, 'testhtml5.vulnweb.com', '', '', '', '{}', true, '2026-01-22 19:58:42.395054', '2026-01-22 19:58:42.395056', '{}', '', NULL, 'https', '', 'WEB_APP', '', '', 'http://testhtml5.vulnweb.com', '', '', '', '', 0, NULL, NULL, '{}');
-INSERT INTO public.environment_targets VALUES (6, 1, 'Lingo', NULL, NULL, NULL, NULL, true, '2026-01-29 02:18:41.223858', '2026-01-29 02:18:41.223861', NULL, NULL, NULL, 'https', NULL, 'WEB_APP', NULL, NULL, 'https://lingo.com', NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL);
 INSERT INTO public.environment_targets VALUES (5, 1, 'SauceDemo', NULL, NULL, NULL, '{"tags": ["webdriver", "selenium", "demo", "e-commerce"], "features": ["login", "shopping cart", "checkout", "inventory"], "description": "Sauce Labs demo e-commerce site for WebDriver testing"}', true, '2026-01-27 03:37:18.519145', '2026-01-30 21:51:22.756641', '{"authType": "form", "loginUrl": "https://www.saucedemo.com", "password": "ENC:xuJ342EqSVs/7uHk9acSw16SRt+0cEyVgc8HuReOBCAuU5lRKK+Npg==", "username": "standard_user", "submitButton": "#login-button", "passwordField": "ENC:yjqBqCOL/zIIaUjDwM3eVwg6MJcww71wGfWyFo3BkmudL/2fUg==", "usernameField": "#user-name", "alternateUsers": {"problem_user": "secret_sauce", "locked_out_user": "secret_sauce", "performance_glitch_user": "secret_sauce"}}', 'www.saucedemo.com', 443, 'https', NULL, 'WEB_APP', NULL, NULL, 'https://www.saucedemo.com', NULL, NULL, NULL, NULL, 0, NULL, NULL, '{"urlDataAttributes": ["data-href", "data-link"], "urlExtractionPatterns": [{"idPattern": "item_(\\d+)_title_link", "urlTemplate": "/inventory-item.html?id=$1"}]}');
 INSERT INTO public.environment_targets VALUES (7, 2, 'SauceDemo', NULL, NULL, NULL, NULL, true, '2026-01-31 03:55:41.091196', '2026-01-31 03:55:41.091197', NULL, 'www.saucedemo.com', 443, 'https', NULL, 'WEB_APP', NULL, NULL, 'https://www.saucedemo.com', NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL);
 INSERT INTO public.environment_targets VALUES (8, 2, 'Walmart', NULL, NULL, NULL, NULL, true, '2026-01-31 05:25:12.360272', '2026-01-31 05:25:12.360276', NULL, 'www.walmart.com', 443, 'https', NULL, 'WEB_APP', NULL, NULL, 'https://www.walmart.com', NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL);
@@ -4288,63 +4287,6 @@ steps:
   - action: TAKE_SCREENSHOT
     prefix: order-complete
 ', '[{"semanticName":"usernameField","tag":"input","id":"user-name","cssSelector":"#user-name","type":"text"},{"semanticName":"passwordField","tag":"input","id":"password","cssSelector":"#password","type":"password"},{"semanticName":"loginButton","tag":"input","id":"login-button","cssSelector":"#login-button","type":"submit"},{"semanticName":"inventoryList","tag":"div","cssSelector":".inventory_list"},{"semanticName":"addBackpackToCart","tag":"button","cssSelector":"[data-test=''add-to-cart-sauce-labs-backpack'']"},{"semanticName":"cartBadge","tag":"span","cssSelector":".shopping_cart_badge"},{"semanticName":"cartLink","tag":"a","cssSelector":"#shopping_cart_container a"},{"semanticName":"cartContents","tag":"div","id":"cart_contents_container","cssSelector":"#cart_contents_container"},{"semanticName":"cartItem","tag":"div","cssSelector":".cart_item"},{"semanticName":"checkoutButton","tag":"button","id":"checkout","cssSelector":"#checkout"},{"semanticName":"firstNameField","tag":"input","id":"first-name","cssSelector":"#first-name"},{"semanticName":"lastNameField","tag":"input","id":"last-name","cssSelector":"#last-name"},{"semanticName":"postalCodeField","tag":"input","id":"postal-code","cssSelector":"#postal-code"},{"semanticName":"continueButton","tag":"input","id":"continue","cssSelector":"#continue"},{"semanticName":"finishButton","tag":"button","id":"finish","cssSelector":"#finish"},{"semanticName":"completeHeader","tag":"h2","cssSelector":".complete-header"}]', 'saucedemo, e-commerce, login, checkout, smoke', 'ACTIVE', 'admin', '2026-01-27 04:15:33.609375', '2026-01-27 04:24:21.755881', 1, NULL, NULL, NULL);
-INSERT INTO public.ui_test VALUES (4, 'Lingo - Page Navigation & Screenshots', 'Navigate key Lingo pages, validate titles and capture screenshots', 1, 'name: Lingo - Page Navigation & Screenshots
-description: Navigate key Lingo pages, validate titles and capture screenshots
-config:
-  timeout: 30
-  screenshotOnFailure: true
-  continueOnFailure: true
-  browser: chrome
-  headless: true
-
-variables:
-  baseUrl: https://lingo.com
-
-steps:
-  # 1. Navigate to home page
-  - action: NAVIGATE_TO
-    url: ${baseUrl}
-
-  - action: VALIDATE_TITLE
-    expected: "Phone, Cloud, Broadband, Security and Managed Services for Businesses | Lingo"
-
-  - action: TAKE_SCREENSHOT
-
-  # 2. Navigate to Cloud Business Phone page
-  - action: NAVIGATE_TO
-    url: ${baseUrl}/cloud-business-phone
-
-  - action: VALIDATE_TITLE
-    expected: "Cloud Business Phone \u2013 Phone, Cloud, Broadband, Security and Managed Services for Businesses | Lingo"
-
-  - action: WAIT_FOR_ELEMENT
-    css: "h1"
-    timeout: 10
-
-  - action: TAKE_SCREENSHOT
-
-  # 3. Navigate to Security page
-  - action: NAVIGATE_TO
-    url: ${baseUrl}/security
-
-  - action: VALIDATE_TITLE
-    expected: "Security \u2013 Phone, Cloud, Broadband, Security and Managed Services for Businesses | Lingo"
-
-  - action: WAIT_FOR_ELEMENT
-    css: "h1"
-    timeout: 10
-
-  - action: TAKE_SCREENSHOT
-
-  # 4. Navigate to About page
-  - action: NAVIGATE_TO
-    url: ${baseUrl}/meet-lingo
-
-  - action: VALIDATE_TITLE
-    expected: "About \u2013 Phone, Cloud, Broadband, Security and Managed Services for Businesses | Lingo"
-
-  - action: TAKE_SCREENSHOT
-', NULL, 'development', 'ACTIVE', 'admin', '2026-01-29 03:30:37.785828', '2026-01-29 04:06:49.689142', 2, NULL, NULL, NULL);
 INSERT INTO public.ui_test VALUES (5, 'SauceDemo - Login & Inventory Assertions', 'Validates login flow and inventory page elements', 1, 'name: SauceDemo - Login & Inventory Assertions
 description: Validates login flow and inventory page elements
 
