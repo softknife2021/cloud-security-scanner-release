@@ -167,33 +167,74 @@ esac
 if [ "$SKIP_PULL" = true ]; then
     echo -e "${YELLOW}[5/9]${NC} Skipping image pull (--no-pull)"
 else
-    echo -e "${YELLOW}[5/9]${NC} Pulling platform images..."
+    echo -e "${YELLOW}[5/9]${NC} Checking and pulling images..."
 
-    # Pull softknife images directly with docker pull to handle platform correctly.
-    # docker-compose pull doesn't respect the 'platform:' field and fails on ARM
-    # when images are amd64-only. docker pull --platform works correctly.
-    # Third-party images (selenium, postgres, dvwa, minio) use local cache —
-    # docker-compose up will pull them on first run if missing.
-    # amd64-only images need explicit --platform on ARM hosts
+    # Only pulls images NOT already cached locally to avoid Docker Hub rate limits
+    # (free accounts: 100 pulls per 6 hours). Uses --platform linux/amd64 for
+    # amd64-only images so they work on Apple Silicon via Rosetta.
+
+    # Build image lists based on mode
     AMD64_IMAGES="softknife/cloud-security-agent:latest"
+    MULTIARCH_IMAGES="softknife/cloud-security-ui:latest postgres:14-alpine"
+
     case "$MODE" in
-        all|scanners) AMD64_IMAGES="$AMD64_IMAGES softknife/cloud-security-scanner:latest softknife/cloud-security-scanner-zap:latest softknife/cloud-security-scanner-artillery:latest" ;;
+        all|scanners)
+            AMD64_IMAGES="$AMD64_IMAGES softknife/cloud-security-scanner:latest"
+            AMD64_IMAGES="$AMD64_IMAGES softknife/cloud-security-scanner-zap:latest"
+            AMD64_IMAGES="$AMD64_IMAGES softknife/cloud-security-scanner-artillery:latest"
+            ;;
     esac
     case "$MODE" in
-        all|ui-test) AMD64_IMAGES="$AMD64_IMAGES softknife/cloud-security-ui-test-agent:latest" ;;
+        all|ui-test)
+            AMD64_IMAGES="$AMD64_IMAGES softknife/cloud-security-ui-test-agent:latest"
+            SELENIUM_IMG=$(grep "^SELENIUM_IMAGE=" "$ENV_FILE" 2>/dev/null | cut -d= -f2)
+            MULTIARCH_IMAGES="$MULTIARCH_IMAGES ${SELENIUM_IMG:-seleniarm/standalone-chromium:latest}"
+            ;;
     esac
+    case "$MODE" in
+        all)
+            AMD64_IMAGES="$AMD64_IMAGES vulnerables/web-dvwa:latest"
+            MULTIARCH_IMAGES="$MULTIARCH_IMAGES minio/minio:latest minio/mc:latest"
+            ;;
+    esac
+
+    PULL_COUNT=0
+    SKIP_COUNT=0
+    FAIL_COUNT=0
+
+    # Helper: pull if not cached
+    pull_if_missing() {
+        local img="$1"
+        local platform_flag="$2"
+        if docker image inspect "$img" > /dev/null 2>&1; then
+            echo -e "  ${GREEN}Cached:${NC}  ${img}"
+            SKIP_COUNT=$((SKIP_COUNT + 1))
+        else
+            echo -e "  ${CYAN}Pulling:${NC} ${img}..."
+            if docker pull $platform_flag "$img" 2>&1 | tail -1; then
+                PULL_COUNT=$((PULL_COUNT + 1))
+            else
+                echo -e "  ${RED}Failed:${NC}  ${img} (Docker Hub rate limit?)"
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+            fi
+        fi
+    }
 
     for img in $AMD64_IMAGES; do
-        echo -e "  Pulling ${img}..."
-        docker pull --platform linux/amd64 "$img" 2>&1 | tail -1 || true
+        pull_if_missing "$img" "--platform linux/amd64"
+    done
+    for img in $MULTIARCH_IMAGES; do
+        pull_if_missing "$img" ""
     done
 
-    # UI image is multi-arch, pull natively (no --platform needed)
-    echo -e "  Pulling softknife/cloud-security-ui:latest..."
-    docker pull softknife/cloud-security-ui:latest 2>&1 | tail -1 || true
-
-    echo -e "  ${GREEN}Platform images up to date${NC}"
-    echo -e "  ${CYAN}Note: Third-party images (selenium, postgres) pulled on first run if not cached${NC}"
+    echo ""
+    echo -e "  ${GREEN}Done:${NC} ${PULL_COUNT} pulled, ${SKIP_COUNT} cached, ${FAIL_COUNT} failed"
+    if [ $FAIL_COUNT -gt 0 ]; then
+        echo -e "  ${YELLOW}Some images failed to pull. If rate-limited, try:${NC}"
+        echo -e "  ${YELLOW}  1. Wait 1-2 hours and run again${NC}"
+        echo -e "  ${YELLOW}  2. Login to Docker Hub: docker login${NC}"
+        echo -e "  ${YELLOW}  3. Re-run with --no-pull if images are already cached${NC}"
+    fi
 fi
 
 # =============================================================================
