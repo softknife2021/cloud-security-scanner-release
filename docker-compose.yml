@@ -220,6 +220,7 @@ services:
 
   # Vulnerable Test Target (DVWA)
   dvwa:
+    platform: linux/amd64
     image: vulnerables/web-dvwa:latest
     container_name: cloud-security-test-target
     restart: unless-stopped

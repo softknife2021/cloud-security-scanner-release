@@ -81,7 +81,7 @@ echo ""
 # =============================================================================
 # Step 1: Pre-flight checks
 # =============================================================================
-echo -e "${YELLOW}[1/8]${NC} Pre-flight checks..."
+echo -e "${YELLOW}[1/9]${NC} Pre-flight checks..."
 
 # Check Docker
 if ! docker info > /dev/null 2>&1; then
@@ -111,7 +111,7 @@ echo -e "  ${GREEN}Project root verified${NC}"
 # =============================================================================
 # Step 2: Environment file
 # =============================================================================
-echo -e "${YELLOW}[2/8]${NC} Checking environment..."
+echo -e "${YELLOW}[2/9]${NC} Checking environment..."
 
 if [ ! -f "$ENV_FILE" ]; then
     echo -e "${RED}ERROR: ${ENV_FILE} not found.${NC}"
@@ -123,13 +123,13 @@ echo -e "  ${GREEN}${ENV_FILE} exists${NC}"
 # =============================================================================
 # Step 3: Docker volumes
 # =============================================================================
-echo -e "${YELLOW}[3/8]${NC} Checking Docker volumes..."
+echo -e "${YELLOW}[3/9]${NC} Checking Docker volumes..."
 echo -e "  ${GREEN}Volumes managed by compose${NC}"
 
 # =============================================================================
 # Step 4: Cleanup
 # =============================================================================
-echo -e "${YELLOW}[4/8]${NC} Cleaning up old containers..."
+echo -e "${YELLOW}[4/9]${NC} Cleaning up old containers..."
 
 # Try compose down first (catches compose-managed containers)
 if [ "$FRESH_DB" = true ]; then
@@ -169,21 +169,31 @@ if [ "$SKIP_PULL" = true ]; then
 else
     echo -e "${YELLOW}[5/9]${NC} Pulling platform images..."
 
-    # Only pull softknife images to avoid Docker Hub rate limits on large
-    # third-party images (selenium ~3GB, postgres, dvwa). Those are pulled
-    # automatically on first run if not cached locally.
-    SOFTKNIFE_SERVICES="security-agent security-agent-ui"
+    # Pull softknife images directly with docker pull to handle platform correctly.
+    # docker-compose pull doesn't respect the 'platform:' field and fails on ARM
+    # when images are amd64-only. docker pull --platform works correctly.
+    # Third-party images (selenium, postgres, dvwa, minio) use local cache —
+    # docker-compose up will pull them on first run if missing.
+    # amd64-only images need explicit --platform on ARM hosts
+    AMD64_IMAGES="softknife/cloud-security-agent:latest"
     case "$MODE" in
-        all|scanners) SOFTKNIFE_SERVICES="$SOFTKNIFE_SERVICES scanner-agent scanner-agent-zap scanner-agent-artillery" ;;
+        all|scanners) AMD64_IMAGES="$AMD64_IMAGES softknife/cloud-security-scanner:latest softknife/cloud-security-scanner-zap:latest softknife/cloud-security-scanner-artillery:latest" ;;
     esac
     case "$MODE" in
-        all|ui-test) SOFTKNIFE_SERVICES="$SOFTKNIFE_SERVICES ui-test-agent" ;;
+        all|ui-test) AMD64_IMAGES="$AMD64_IMAGES softknife/cloud-security-ui-test-agent:latest" ;;
     esac
 
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
-        pull $SOFTKNIFE_SERVICES 2>&1 | grep -v "^$" || true
+    for img in $AMD64_IMAGES; do
+        echo -e "  Pulling ${img}..."
+        docker pull --platform linux/amd64 "$img" 2>&1 | tail -1 || true
+    done
+
+    # UI image is multi-arch, pull natively (no --platform needed)
+    echo -e "  Pulling softknife/cloud-security-ui:latest..."
+    docker pull softknife/cloud-security-ui:latest 2>&1 | tail -1 || true
+
     echo -e "  ${GREEN}Platform images up to date${NC}"
-    echo -e "  ${CYAN}Note: Third-party images (selenium, postgres) use local cache${NC}"
+    echo -e "  ${CYAN}Note: Third-party images (selenium, postgres) pulled on first run if not cached${NC}"
 fi
 
 # =============================================================================
