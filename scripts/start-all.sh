@@ -13,6 +13,7 @@
 #   ./scripts/start-all.sh ui-test      # Core + selenium + ui-test-agent
 #   ./scripts/start-all.sh --fresh      # Wipe DB and re-init from 01-init.sql
 #   ./scripts/start-all.sh --fresh all  # Fresh DB + all profiles
+#   ./scripts/start-all.sh --no-pull    # Skip pulling images (use local cache)
 #
 # =============================================================================
 
@@ -32,12 +33,14 @@ ENV_FILE="local.env"
 API_PORT="${APP_PORT:-8080}"
 API_URL="http://localhost:${API_PORT}"
 FRESH_DB=false
+SKIP_PULL=false
 
 # Parse arguments
 MODE="all"
 for arg in "$@"; do
     case "$arg" in
         --fresh) FRESH_DB=true ;;
+        --no-pull) SKIP_PULL=true ;;
         core|scanners|ui-test|all) MODE="$arg" ;;
         *) echo -e "${RED}Unknown argument: $arg${NC}"; exit 1 ;;
     esac
@@ -72,6 +75,7 @@ echo -e "${NC}"
 echo -e "  Mode:     ${BOLD}${MODE}${NC}"
 echo -e "  Compose:  ${COMPOSE_FILE}"
 [ "$FRESH_DB" = true ] && echo -e "  Fresh DB: ${YELLOW}yes (volumes will be wiped)${NC}"
+[ "$SKIP_PULL" = true ] && echo -e "  Pull:     ${YELLOW}skipped (using local images)${NC}"
 echo ""
 
 # =============================================================================
@@ -158,13 +162,29 @@ case "$MODE" in
 esac
 
 # =============================================================================
-# Step 5b: Pull latest images
+# Step 5b: Pull images
 # =============================================================================
-echo -e "${YELLOW}[5/9]${NC} Pulling latest images..."
+if [ "$SKIP_PULL" = true ]; then
+    echo -e "${YELLOW}[5/9]${NC} Skipping image pull (--no-pull)"
+else
+    echo -e "${YELLOW}[5/9]${NC} Pulling platform images..."
 
-docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
-    $PROFILES pull 2>&1 | grep -v "^$" || true
-echo -e "  ${GREEN}Images up to date${NC}"
+    # Only pull softknife images to avoid Docker Hub rate limits on large
+    # third-party images (selenium ~3GB, postgres, dvwa). Those are pulled
+    # automatically on first run if not cached locally.
+    SOFTKNIFE_SERVICES="security-agent security-agent-ui"
+    case "$MODE" in
+        all|scanners) SOFTKNIFE_SERVICES="$SOFTKNIFE_SERVICES scanner-agent scanner-agent-zap scanner-agent-artillery" ;;
+    esac
+    case "$MODE" in
+        all|ui-test) SOFTKNIFE_SERVICES="$SOFTKNIFE_SERVICES ui-test-agent" ;;
+    esac
+
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
+        pull $SOFTKNIFE_SERVICES 2>&1 | grep -v "^$" || true
+    echo -e "  ${GREEN}Platform images up to date${NC}"
+    echo -e "  ${CYAN}Note: Third-party images (selenium, postgres) use local cache${NC}"
+fi
 
 # =============================================================================
 # Step 6: Start core services
