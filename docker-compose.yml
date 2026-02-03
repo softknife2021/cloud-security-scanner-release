@@ -171,7 +171,7 @@ services:
 
   # Selenium Chrome (for UI testing)
   selenium-chrome:
-    image: selenium/standalone-chrome:latest
+    image: ${SELENIUM_IMAGE:-seleniarm/standalone-chromium:latest}
     container_name: cloud-security-selenium
     shm_size: '2g'
     ports:
