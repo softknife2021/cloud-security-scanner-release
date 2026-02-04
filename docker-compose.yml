@@ -192,6 +192,29 @@ services:
     profiles:
       - ui-test
 
+  # Selenium Firefox (for UI testing)
+  selenium-firefox:
+    image: ${SELENIUM_FIREFOX_IMAGE:-seleniarm/standalone-firefox:latest}
+    container_name: cloud-security-selenium-firefox
+    shm_size: '2g'
+    ports:
+      - "4445:4444"
+      - "7901:7900"
+    environment:
+      - SE_NODE_MAX_SESSIONS=3
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+      - SE_SESSION_REQUEST_TIMEOUT=300
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - cloud-security-network
+    profiles:
+      - ui-test-firefox
+
   # UI Test Agent (Java + QReasp WebDriver)
   ui-test-agent:
     platform: linux/amd64
@@ -207,6 +230,7 @@ services:
       AGENT_ID: ${UI_TEST_AGENT_ID:-ui-test-agent-001}
       API_BASE_URL: http://security-agent:8080
       SELENIUM_URL: http://selenium-chrome:4444
+      SELENIUM_FIREFOX_URL: http://selenium-firefox:4444
       POLL_INTERVAL: ${UI_TEST_POLL_INTERVAL:-30}
       MAX_CONCURRENT_JOBS: 2
       DEFAULT_TIMEOUT: 30
