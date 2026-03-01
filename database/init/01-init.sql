@@ -722,7 +722,7 @@ CREATE TABLE public.custom_script (
     rejection_reason text,
     validation_result text,
     checksum character varying(64),
-    version integer DEFAULT 1,
+    version bigint DEFAULT 0,
     original_filename character varying(255),
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
@@ -1248,6 +1248,7 @@ CREATE TABLE public.scan_job (
     api_scenario_id bigint,
     ui_test_id bigint,
     ui_test_suite_id bigint,
+    mobile_test_id bigint,
     application_id bigint
 );
 
@@ -1467,7 +1468,7 @@ CREATE TABLE public.ui_test (
     created_by character varying(100),
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    version integer DEFAULT 0,
+    version bigint DEFAULT 0,
     group_name character varying(100),
     feature character varying(255),
     tested_version character varying(100)
@@ -1508,7 +1509,7 @@ CREATE TABLE public.ui_test_suite (
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     created_by character varying(100),
     updated_by character varying(100),
-    version integer DEFAULT 0
+    version bigint DEFAULT 0
 );
 
 
@@ -3897,6 +3898,301 @@ SELECT pg_catalog.setval('public.scan_template_id_seq', 80, true);
 --
 
 SELECT pg_catalog.setval('public.users_id_seq', 1, true);
+
+
+-- =============================================================================
+-- Mobile Testing Tables (Appium)
+-- =============================================================================
+
+--
+-- Name: mobile_platform; Type: TYPE; Schema: public; Owner: -
+--
+
+DO $$ BEGIN
+    CREATE TYPE public.mobile_platform AS ENUM ('ANDROID', 'IOS');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+
+--
+-- Name: mobile_apps; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.mobile_apps (
+    id bigint NOT NULL,
+    project_id bigint,
+    target_id bigint,
+    name character varying(255) NOT NULL,
+    description text,
+    platform character varying(20) NOT NULL,
+    app_package character varying(255),
+    app_activity character varying(255),
+    bundle_id character varying(255),
+    app_version character varying(50),
+    app_path character varying(500),
+    app_size_bytes bigint,
+    original_filename character varying(255),
+    github_config jsonb,
+    appium_capabilities jsonb DEFAULT '{}'::jsonb,
+    cloud_provider character varying(50),
+    cloud_config jsonb,
+    active boolean DEFAULT true,
+    version bigint DEFAULT 0,
+    created_by character varying(100),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: mobile_apps_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.mobile_apps_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: mobile_apps_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.mobile_apps_id_seq OWNED BY public.mobile_apps.id;
+
+
+--
+-- Name: mobile_apps id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mobile_apps ALTER COLUMN id SET DEFAULT nextval('public.mobile_apps_id_seq'::regclass);
+
+
+--
+-- Name: mobile_apps mobile_apps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.mobile_apps DROP CONSTRAINT IF EXISTS mobile_apps_pkey;
+ALTER TABLE ONLY public.mobile_apps ADD CONSTRAINT mobile_apps_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: mobile_apps mobile_apps_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.mobile_apps DROP CONSTRAINT IF EXISTS mobile_apps_project_id_fkey;
+ALTER TABLE ONLY public.mobile_apps ADD CONSTRAINT mobile_apps_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
+
+
+--
+-- Name: mobile_apps mobile_apps_target_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.mobile_apps DROP CONSTRAINT IF EXISTS mobile_apps_target_id_fkey;
+ALTER TABLE ONLY public.mobile_apps ADD CONSTRAINT mobile_apps_target_id_fkey FOREIGN KEY (target_id) REFERENCES public.environment_targets(id) ON DELETE SET NULL;
+
+
+--
+-- Name: idx_mobile_apps_target; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_mobile_apps_target ON public.mobile_apps(target_id);
+
+
+--
+-- Name: idx_mobile_apps_project; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_mobile_apps_project ON public.mobile_apps(project_id);
+
+
+--
+-- Name: idx_mobile_apps_platform; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_mobile_apps_platform ON public.mobile_apps(platform);
+
+
+--
+-- Name: mobile_tests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.mobile_tests (
+    id bigint NOT NULL,
+    project_id bigint,
+    mobile_app_id bigint,
+    name character varying(255) NOT NULL,
+    description text,
+    yaml_content text NOT NULL,
+    page_objects text,
+    tags character varying(500),
+    group_name character varying(100),
+    platform character varying(20),
+    min_os_version character varying(20),
+    status character varying(50) DEFAULT 'ACTIVE'::character varying,
+    version bigint DEFAULT 0,
+    created_by character varying(100),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: mobile_tests_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.mobile_tests_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: mobile_tests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.mobile_tests_id_seq OWNED BY public.mobile_tests.id;
+
+
+--
+-- Name: mobile_tests id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mobile_tests ALTER COLUMN id SET DEFAULT nextval('public.mobile_tests_id_seq'::regclass);
+
+
+--
+-- Name: mobile_tests mobile_tests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.mobile_tests DROP CONSTRAINT IF EXISTS mobile_tests_pkey;
+ALTER TABLE ONLY public.mobile_tests ADD CONSTRAINT mobile_tests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: mobile_tests mobile_tests_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.mobile_tests DROP CONSTRAINT IF EXISTS mobile_tests_project_id_fkey;
+ALTER TABLE ONLY public.mobile_tests ADD CONSTRAINT mobile_tests_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
+
+
+--
+-- Name: mobile_tests mobile_tests_mobile_app_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.mobile_tests DROP CONSTRAINT IF EXISTS mobile_tests_mobile_app_id_fkey;
+ALTER TABLE ONLY public.mobile_tests ADD CONSTRAINT mobile_tests_mobile_app_id_fkey FOREIGN KEY (mobile_app_id) REFERENCES public.mobile_apps(id) ON DELETE SET NULL;
+
+
+--
+-- Name: idx_mobile_tests_project; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_mobile_tests_project ON public.mobile_tests(project_id);
+
+
+--
+-- Name: idx_mobile_tests_app; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_mobile_tests_app ON public.mobile_tests(mobile_app_id);
+
+
+--
+-- Name: mobile_inspection_results; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.mobile_inspection_results (
+    id bigint NOT NULL,
+    job_id uuid,
+    mobile_app_id bigint,
+    screen_name character varying(255),
+    screen_order integer,
+    elements jsonb NOT NULL,
+    screenshot_path character varying(500),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    version bigint DEFAULT 0
+);
+
+
+--
+-- Name: mobile_inspection_results_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.mobile_inspection_results_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: mobile_inspection_results_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.mobile_inspection_results_id_seq OWNED BY public.mobile_inspection_results.id;
+
+
+--
+-- Name: mobile_inspection_results id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mobile_inspection_results ALTER COLUMN id SET DEFAULT nextval('public.mobile_inspection_results_id_seq'::regclass);
+
+
+--
+-- Name: mobile_inspection_results mobile_inspection_results_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.mobile_inspection_results DROP CONSTRAINT IF EXISTS mobile_inspection_results_pkey;
+ALTER TABLE ONLY public.mobile_inspection_results ADD CONSTRAINT mobile_inspection_results_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: mobile_inspection_results mobile_inspection_results_mobile_app_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.mobile_inspection_results DROP CONSTRAINT IF EXISTS mobile_inspection_results_mobile_app_id_fkey;
+ALTER TABLE ONLY public.mobile_inspection_results ADD CONSTRAINT mobile_inspection_results_mobile_app_id_fkey FOREIGN KEY (mobile_app_id) REFERENCES public.mobile_apps(id) ON DELETE CASCADE;
+
+
+--
+-- Name: idx_mobile_inspection_app; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_mobile_inspection_app ON public.mobile_inspection_results(mobile_app_id);
+
+
+--
+-- Name: idx_mobile_inspection_job; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_mobile_inspection_job ON public.mobile_inspection_results(job_id);
+
+
+--
+-- Add APPIUM and APPIUM_INSPECTOR scan templates for mobile testing
+--
+
+INSERT INTO public.scan_template (category, test_type, tool_name, name, description, command_template, timeout_seconds, output_format, parameter_schema, risk_level, version)
+SELECT 'MOBILE', 'MOBILE_UI_TEST', 'APPIUM', 'Appium Mobile Test', 'Execute mobile UI test via Appium', '', 600, 'JSON',
+    '{"parameters": [{"name": "platform", "type": "select", "label": "Platform", "options": [{"label": "Android", "value": "ANDROID"}, {"label": "iOS", "value": "IOS"}], "default": "ANDROID", "required": true}]}',
+    'LOW', 0
+WHERE NOT EXISTS (SELECT 1 FROM public.scan_template WHERE tool_name = 'APPIUM');
+
+INSERT INTO public.scan_template (category, test_type, tool_name, name, description, command_template, timeout_seconds, output_format, parameter_schema, risk_level, version)
+SELECT 'MOBILE', 'MOBILE_INSPECTION', 'APPIUM_INSPECTOR', 'Appium Element Inspector', 'Discover mobile app elements via Appium', '', 300, 'JSON',
+    '{"parameters": [{"name": "depth", "type": "number", "label": "Screen Depth", "default": 3, "required": false, "description": "How many screens deep to traverse"}]}',
+    'LOW', 0
+WHERE NOT EXISTS (SELECT 1 FROM public.scan_template WHERE tool_name = 'APPIUM_INSPECTOR');
 
 
 --
