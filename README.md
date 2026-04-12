@@ -53,13 +53,20 @@ minikube start --cpus=2 --memory=4096
 kubectl create namespace pilotrelease
 helm install pilotrelease ./helm/pilotrelease -n pilotrelease
 
-# Check pods
-kubectl get pods -n pilotrelease
+# Wait for pods to be ready (~2 minutes)
+kubectl get pods -n pilotrelease -w
 
-# Access
-kubectl port-forward svc/pilotrelease-ui 3000:80 -n pilotrelease
-kubectl port-forward svc/pilotrelease-backend 8080:8080 -n pilotrelease
+# Access the platform (run in separate terminal, keep it running)
+kubectl port-forward svc/pilotrelease-ui 3000:80 -n pilotrelease &
+kubectl port-forward svc/pilotrelease-backend 8080:8080 -n pilotrelease &
+
+# Open in browser
+#   UI:  http://localhost:3000
+#   API: http://localhost:8080
+#   Credentials: admin / admin123
 ```
+
+> **Note:** On minikube (Mac/Windows), port-forward is required because minikube runs inside Docker. On a real K8s cluster with an Ingress controller or LoadBalancer, access is direct via the cluster's external IP or domain.
 
 ### Common K8s Commands
 
