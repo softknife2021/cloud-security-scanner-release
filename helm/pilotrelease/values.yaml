@@ -28,7 +28,7 @@ backend:
   replicas: 1
   port: 8080
   jwtSecret: MySecureJWTSecretKeyForProductionPleaseChangeThisToAStrongRandomValue
-  jwtExpirationMs: "86400000"
+  jwtExpirationMs: "2592000000"  # 30 days
   logLevel: INFO
   resources:
     requests:
