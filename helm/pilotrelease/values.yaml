@@ -1,0 +1,116 @@
+# Cloud Security Scanner - Helm Values
+
+# Global settings
+global:
+  imageTag: latest
+  imagePullPolicy: IfNotPresent
+
+# PostgreSQL
+postgres:
+  image: postgres
+  tag: "15-alpine"
+  port: 5432
+  database: security_agent
+  username: secadmin
+  password: secpass123
+  storage: 5Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Backend (Spring Boot API)
+backend:
+  image: softknife/pilotrelease-backend
+  replicas: 1
+  port: 8080
+  jwtSecret: MySecureJWTSecretKeyForProductionPleaseChangeThisToAStrongRandomValue
+  jwtExpirationMs: "86400000"
+  logLevel: INFO
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# Frontend (React/Nginx)
+ui:
+  image: softknife/pilotrelease-ui
+  replicas: 1
+  port: 80
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+# Scanner Agent (Python)
+scanner:
+  image: softknife/pilotrelease-scanner
+  replicas: 1
+  agentId: scanner-agent-001
+  pollInterval: "30"
+  logLevel: INFO
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# MinIO (S3-compatible storage)
+minio:
+  enabled: true
+  image: minio/minio
+  tag: latest
+  mcImage: minio/mc
+  mcTag: latest
+  port: 9000
+  consolePort: 9001
+  rootUser: minioadmin
+  rootPassword: minioadmin
+  bucket: scan-results
+  storage: 10Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# UI Test Agent (Selenium WebDriver)
+uiTestAgent:
+  image: softknife/pilotrelease-ui-test
+  replicas: 1
+  seleniumUrl: http://selenium-chrome:4444
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# App credentials (used by scanner agent for auto-auth)
+app:
+  adminUsername: admin
+  adminPassword: admin123
+
+# Ingress
+ingress:
+  enabled: false
+  className: nginx
+  host: security-scanner.local
+  tls: false
+
+# Service type: ClusterIP, NodePort, or LoadBalancer
+serviceType: NodePort

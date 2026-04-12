@@ -1,0 +1,13 @@
+apiVersion: v2
+name: cloud-security-scanner
+description: Cloud Security Scanner - API security testing platform
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - security
+  - scanner
+  - api-testing
+  - performance-testing
+maintainers:
+  - name: softknife

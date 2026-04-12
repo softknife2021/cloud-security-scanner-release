@@ -1,0 +1,29 @@
+{{- if .Values.minio.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-minio
+  labels:
+    {{- include "cloud-security-scanner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  type: {{ .Values.serviceType }}
+  ports:
+    - port: {{ .Values.minio.port }}
+      targetPort: {{ .Values.minio.port }}
+      protocol: TCP
+      name: api
+      {{- if eq .Values.serviceType "NodePort" }}
+      nodePort: 30900
+      {{- end }}
+    - port: {{ .Values.minio.consolePort }}
+      targetPort: {{ .Values.minio.consolePort }}
+      protocol: TCP
+      name: console
+      {{- if eq .Values.serviceType "NodePort" }}
+      nodePort: 30901
+      {{- end }}
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: minio
+{{- end }}

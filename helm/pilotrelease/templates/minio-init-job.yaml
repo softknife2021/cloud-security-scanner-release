@@ -1,0 +1,47 @@
+{{- if .Values.minio.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-minio-init
+  labels:
+    {{- include "cloud-security-scanner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio-init
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: minio-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: minio-init
+          image: "{{ .Values.minio.mcImage }}:{{ .Values.minio.mcTag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for MinIO to be ready..."
+              until mc alias set myminio http://{{ .Release.Name }}-minio:{{ .Values.minio.port }} $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD 2>/dev/null; do
+                sleep 3
+              done
+              mc mb myminio/{{ .Values.minio.bucket }} --ignore-existing
+              mc anonymous set download myminio/{{ .Values.minio.bucket }}
+              echo "Bucket '{{ .Values.minio.bucket }}' created successfully"
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: minio-root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: minio-root-password
+{{- end }}

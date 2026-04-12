@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  labels:
+    {{- include "cloud-security-scanner.labels" . | nindent 4 }}
+data:
+  POSTGRES_DB: {{ .Values.postgres.database | quote }}
+  POSTGRES_USER: {{ .Values.postgres.username | quote }}
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://{{ .Release.Name }}-postgres:{{ .Values.postgres.port }}/{{ .Values.postgres.database }}"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "none"
+  SPRING_JPA_SHOW_SQL: "false"
+  SPRING_FLYWAY_ENABLED: "false"
+  SERVER_PORT: {{ .Values.backend.port | quote }}
+  JWT_EXPIRATION_MS: {{ .Values.backend.jwtExpirationMs | quote }}
+  LOGGING_LEVEL_ROOT: {{ .Values.backend.logLevel | quote }}
+  LOGGING_LEVEL_COM_SOFTKNIFE: "DEBUG"
+  AGENT_ID: {{ .Values.scanner.agentId | quote }}
+  POLL_INTERVAL: {{ .Values.scanner.pollInterval | quote }}
+  LOG_LEVEL: {{ .Values.scanner.logLevel | quote }}
+  API_BASE_URL: "http://{{ .Release.Name }}-backend:{{ .Values.backend.port }}"
+  S3_ENABLED: {{ .Values.minio.enabled | quote }}
+  S3_BUCKET: {{ .Values.minio.bucket | quote }}
+  S3_ENDPOINT: "http://{{ .Release.Name }}-minio:{{ .Values.minio.port }}"

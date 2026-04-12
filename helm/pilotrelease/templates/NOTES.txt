@@ -1,0 +1,40 @@
+Cloud Security Scanner deployed successfully!
+
+{{- if eq .Values.serviceType "NodePort" }}
+
+Access the application (Minikube):
+
+  UI:      http://$(minikube ip):30000
+  API:     http://$(minikube ip):30080
+  MinIO:   http://$(minikube ip):30901
+
+{{- else if eq .Values.serviceType "LoadBalancer" }}
+
+Access the application:
+
+  kubectl get svc -l app.kubernetes.io/instance={{ .Release.Name }}
+
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+
+Ingress configured:
+
+  URL: http{{ if .Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.host }}
+
+{{- end }}
+
+Credentials:
+  App:   {{ .Values.app.adminUsername }} / {{ .Values.app.adminPassword }}
+  MinIO: {{ .Values.minio.rootUser }} / {{ .Values.minio.rootPassword }}
+
+Useful commands:
+
+  # Check pod status
+  kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+  # View backend logs
+  kubectl logs -l app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=backend -f
+
+  # View scanner logs
+  kubectl logs -l app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=scanner -f

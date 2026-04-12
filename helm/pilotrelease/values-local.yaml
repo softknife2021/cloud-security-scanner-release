@@ -1,0 +1,57 @@
+# Local deployment values - uses locally built images
+# Usage: helm install scanner ./helm/cloud-security-scanner -f ./helm/cloud-security-scanner/values-local.yaml
+
+global:
+  imageTag: v1.2.0
+  imagePullPolicy: Never  # Use local images, don't pull from registry
+
+# PostgreSQL - use standard postgres image (available in Minikube)
+postgres:
+  image: postgres
+  tag: "14-alpine"
+  imagePullPolicy: IfNotPresent
+  port: 5432
+  database: security_agent
+  username: secadmin
+  password: secpass123
+  storage: 5Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Backend (Spring Boot API)
+backend:
+  image: softknife/cloud-security-agent
+  replicas: 1
+  port: 8080
+  jwtSecret: MySecureJWTSecretKeyForProductionPleaseChangeThisToAStrongRandomValue
+  jwtExpirationMs: "86400000"
+  logLevel: INFO
+
+# Frontend (React/Nginx)
+ui:
+  image: softknife/cloud-security-ui
+  replicas: 1
+  port: 80
+
+# Scanner Agent (Python)
+scanner:
+  image: softknife/cloud-security-scanner
+  replicas: 1
+  agentId: scanner-agent-001
+  pollInterval: "30"
+  logLevel: INFO
+
+# MinIO
+minio:
+  image: minio/minio
+  tag: latest
+  imagePullPolicy: IfNotPresent
+  enabled: true
+  rootUser: minioadmin
+  rootPassword: minioadmin
+  storage: 5Gi

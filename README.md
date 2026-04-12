@@ -1,33 +1,98 @@
-# Cloud Security Scanner
+# PilotRelease Platform — Deployment Guide
 
-A cloud-native security scanning platform with a web UI for managing vulnerability scans, API security testing, UI testing, and performance testing.
-
-## Prerequisites
-
-- Docker and Docker Compose installed
-- Minimum 4GB RAM available for Docker
-
-## Quick Start
+## Quick Start (Docker Compose)
 
 ```bash
-# 1. Clone this repo
-git clone https://github.com/softknife2021/cloud-security-scanner-release.git
-cd cloud-security-scanner-release
+git clone <this-repo-url>
+cd pilotrelease-release
 
-# 2. Start everything (handles JWT tokens, health checks, all services)
-./scripts/start-all.sh
+# Start core services
+docker-compose up -d
+
+# Wait ~60 seconds, then access:
+#   UI:  http://localhost:3000
+#   API: http://localhost:8080
+#   Credentials: admin / admin123
 ```
 
-Open http://localhost:3000 and login with `admin` / `admin123`
-
-### Start Options
+### Profiles (optional agents)
 
 ```bash
-./scripts/start-all.sh              # Everything (all profiles)
-./scripts/start-all.sh core         # Just database + backend + UI
-./scripts/start-all.sh scanners     # Core + all scanner agents
-./scripts/start-all.sh ui-test      # Core + Selenium + UI test agent
+# UI testing (Selenium + WebDriver)
+docker-compose --profile ui-test up -d
+
+# Performance testing (Artillery)
+docker-compose --profile performance up -d
+
+# ZAP DAST scanning
+docker-compose --profile scanner-zap up -d
+
+# S3 storage (MinIO)
+docker-compose --profile storage up -d
+
+# Everything
+docker-compose --profile ui-test --profile performance --profile scanner-zap --profile storage up -d
 ```
+
+### Stop
+
+```bash
+docker-compose down          # stop
+docker-compose down -v       # stop + reset data
+```
+
+---
+
+## Kubernetes (Helm)
+
+```bash
+# Start minikube (local) or use existing cluster
+minikube start --cpus=2 --memory=4096
+
+# Deploy
+kubectl create namespace pilotrelease
+helm install pilotrelease ./helm/pilotrelease -n pilotrelease
+
+# Check pods
+kubectl get pods -n pilotrelease
+
+# Access
+kubectl port-forward svc/pilotrelease-ui 3000:80 -n pilotrelease
+kubectl port-forward svc/pilotrelease-backend 8080:8080 -n pilotrelease
+```
+
+### Common K8s Commands
+
+```bash
+# Logs
+kubectl logs -f -l app.kubernetes.io/component=backend -n pilotrelease
+
+# Restart
+kubectl rollout restart deployment/pilotrelease-backend -n pilotrelease
+
+# Scale
+kubectl scale deployment/pilotrelease-scanner --replicas=3 -n pilotrelease
+
+# Reset (delete data + reinstall)
+helm uninstall pilotrelease -n pilotrelease
+kubectl delete pvc -l app.kubernetes.io/instance=pilotrelease -n pilotrelease
+helm install pilotrelease ./helm/pilotrelease -n pilotrelease
+```
+
+---
+
+## Images (Docker Hub)
+
+| Image | Purpose |
+|-------|---------|
+| `softknife/pilotrelease-backend` | Backend API (Spring Boot) |
+| `softknife/pilotrelease-ui` | Frontend (React) |
+| `softknife/pilotrelease-scanner` | Security scanner (Nmap, Nuclei, SQLMap, Nikto) |
+| `softknife/pilotrelease-scanner-zap` | ZAP DAST scanner |
+| `softknife/pilotrelease-performance` | Performance testing (Artillery) |
+| `softknife/pilotrelease-ui-test` | UI test agent (WebDriver) |
+
+---
 
 ## Default Credentials
 
@@ -37,88 +102,28 @@ Open http://localhost:3000 and login with `admin` / `admin123`
 | analyst | analyst123 | ANALYST, VIEWER |
 | viewer | viewer123 | VIEWER |
 
-## Services
-
-| Service | URL | Description |
-|---------|-----|-------------|
-| UI | http://localhost:3000 | Web dashboard |
-| Backend API | http://localhost:8080 | REST API |
-| Database | localhost:5433 | PostgreSQL |
-
-## Optional Profiles
-
-Enable additional services with `--profile`:
-
-```bash
-# UI Testing (Selenium + WebDriver agent)
-docker-compose --env-file local.env --profile ui-test up -d
-
-# Security Scanner Agent (core: nmap, nikto, sqlmap, nuclei, trivy, kubectl)
-docker-compose --env-file local.env --profile scanner up -d
-
-# Scanner with OWASP ZAP (web app security scanning)
-docker-compose --env-file local.env --profile scanner-zap up -d
-
-# Scanner with Artillery (performance/load testing)
-docker-compose --env-file local.env --profile scanner-artillery up -d
-
-# S3 Storage (MinIO)
-docker-compose --env-file local.env --profile storage up -d
-
-# Vulnerable test target (DVWA)
-docker-compose --env-file local.env --profile target up -d
-
-# All profiles
-docker-compose --env-file local.env --profile scanner --profile scanner-zap --profile scanner-artillery --profile ui-test --profile storage --profile target up -d
-```
-
-### Scanner Agent Setup
-
-`start-all.sh` handles JWT token generation and scanner startup automatically. For manual setup:
-
-```bash
-# Get a token and start scanner
-TOKEN=$(curl -s http://localhost:8080/api/auth/login -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
-
-SCANNER_JWT_TOKEN=$TOKEN docker-compose --env-file local.env --profile scanner up -d
-```
-
-### UI Testing
-
-When running with `--profile ui-test`, a Selenium Chrome browser and WebDriver agent are started. Access the Selenium VNC viewer at http://localhost:7900 (password: `secret`) to watch tests run.
-
-## Configuration
-
-Edit `local.env` to customize ports, passwords, and settings. See the comments in the file for details.
-
-## Stopping
-
-```bash
-# Stop all services
-docker-compose --env-file local.env down
-
-# Stop and remove data
-docker-compose --env-file local.env down -v
-```
+---
 
 ## Architecture
 
 ```
-Browser → UI (React/Nginx:3000) → Backend API (Spring Boot:8080) → PostgreSQL
-                                         ↑
-                              Scanner Agent (Python) - polls for jobs
-                              UI Test Agent (Java/Selenium) - polls for UI test jobs
+                    ┌──────────┐
+                    │    UI    │ :3000
+                    └────┬─────┘
+                         │
+                    ┌────▼─────┐
+                    │ Backend  │ :8080
+                    └────┬─────┘
+                         │
+              ┌──────────┼──────────┐
+              │          │          │
+        ┌─────▼──┐  ┌───▼────┐  ┌──▼──────┐
+        │Postgres│  │ MinIO  │  │Selenium │
+        └────────┘  └────────┘  └─────────┘
+              │
+    ┌─────────┼─────────┬──────────┐
+    │         │         │          │
+┌───▼───┐ ┌──▼───┐ ┌───▼──┐ ┌────▼───┐
+│Scanner│ │ ZAP  │ │ Perf │ │UI Test │
+└───────┘ └──────┘ └──────┘ └────────┘
 ```
-
-## Images
-
-All images are hosted on Docker Hub under `softknife/`:
-
-- `softknife/cloud-security-agent` - Backend API
-- `softknife/cloud-security-ui` - Web UI
-- `softknife/cloud-security-scanner` - Core scanner agent (235 MB)
-- `softknife/cloud-security-scanner-zap` - Scanner + OWASP ZAP (654 MB)
-- `softknife/cloud-security-scanner-artillery` - Scanner + Artillery (610 MB)
-- `softknife/cloud-security-ui-test-agent` - UI test agent
