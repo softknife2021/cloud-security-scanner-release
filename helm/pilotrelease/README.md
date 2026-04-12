@@ -1,155 +1,156 @@
-# Cloud Security Scanner - Helm Chart
+# ReleasePilot — Helm Chart
 
-Deploy the full Cloud Security Scanner stack to Kubernetes.
+Deploy the full ReleasePilot platform to any Kubernetes cluster.
 
 ## Prerequisites
 
-- Kubernetes cluster (Minikube, Docker Desktop, etc.)
+- Kubernetes cluster (minikube, Hetzner, AWS EKS, GKE, AKS, etc.)
 - Helm 3.x
 - `kubectl` configured
 
-## Quick Start (Minikube)
+## Quick Deploy
 
 ```bash
-# Start Minikube
-minikube start
+# Generate production secrets (one time)
+../scripts/deploy-k8s.sh generate-secrets
 
-# Install the chart
-helm install scanner ./helm/cloud-security-scanner/
+# Install
+../scripts/deploy-k8s.sh install
 
-# Wait for pods to be ready (~90s for backend)
-kubectl get pods -l app.kubernetes.io/instance=scanner -w
-
-# Access services
-minikube service scanner-ui --url        # UI
-minikube service scanner-backend --url   # API
-minikube service scanner-minio --url     # MinIO Console
+# Or manually:
+kubectl create namespace pilotrelease
+helm install pilotrelease . -n pilotrelease -f values-secrets.yaml
 ```
 
-## Services
+## What Gets Deployed
 
-| Component | Port | NodePort | Description |
-|-----------|------|----------|-------------|
-| UI | 80 | 30000 | React frontend |
-| Backend | 8080 | 30080 | Spring Boot API |
-| PostgreSQL | 5432 | - | Database (internal only) |
-| Scanner Agent | - | - | Python scanner (no exposed port) |
-| MinIO API | 9000 | 30900 | S3-compatible storage |
-| MinIO Console | 9001 | 30901 | MinIO web UI |
+| Component | Service | Ports | Description |
+|-----------|---------|-------|-------------|
+| Backend API | pilotrelease-backend | 8080 (NodePort 30080) | Spring Boot REST API |
+| Frontend UI | pilotrelease-ui | 80 (NodePort 30000) | React + Nginx |
+| PostgreSQL | pilotrelease-postgres | 5432 (ClusterIP) | Database |
+| Selenium | pilotrelease-selenium | 4444, 7900 (ClusterIP) | Chrome for element picker |
+| MinIO | pilotrelease-minio | 9000, 9001 (NodePort 30900/30901) | S3 storage |
+| Scanner Agent | pilotrelease-scanner | — | Nmap, Nuclei, Nikto, SQLMap, Trivy |
+| ZAP Agent | pilotrelease-zap | — | OWASP ZAP DAST scanning |
+| Artillery Agent | pilotrelease-artillery | — | Performance/load testing |
+| UI Test Agent | pilotrelease-ui-test-agent | — | WebDriver + Crawler (Selenium sidecar) |
+| Backend Alias | security-agent | 8080 (ClusterIP) | Nginx proxy target alias |
 
-## Default Credentials
+## Secrets
 
-| Service | Username | Password |
-|---------|----------|----------|
-| App | admin | admin123 |
-| MinIO | minioadmin | minioadmin |
-| Database | secadmin | secpass123 |
+**Never use default passwords in production.** Generate real secrets:
+
+```bash
+# Auto-generate random passwords
+../scripts/deploy-k8s.sh generate-secrets
+# Creates: values-secrets.yaml (gitignored)
+```
+
+Or copy the example and fill in manually:
+```bash
+cp values-secrets.example.yaml values-secrets.yaml
+# Edit values-secrets.yaml with real passwords
+```
+
+### What's in the secrets file
+
+| Secret | Purpose |
+|--------|---------|
+| `postgres.password` | Database password |
+| `backend.jwtSecret` | JWT signing key (min 64 chars) |
+| `app.adminPassword` | Initial admin user password |
+| `app.encryptionKey` | AES-256 key for credential vault (exactly 32 chars) |
+| `minio.rootUser` | MinIO access key |
+| `minio.rootPassword` | MinIO secret key |
 
 ## Customizing Values
 
 ```bash
-# Override on install
-helm install scanner ./helm/cloud-security-scanner/ \
-  --set app.adminPassword=mySecurePass \
+# Override at install time
+helm install pilotrelease . -n pilotrelease \
+  -f values-secrets.yaml \
   --set backend.replicas=2 \
   --set minio.storage=20Gi
 
 # Or create a custom values file
-helm install scanner ./helm/cloud-security-scanner/ -f my-values.yaml
+helm install pilotrelease . -n pilotrelease \
+  -f values-secrets.yaml \
+  -f values-custom.yaml
 ```
 
 ### Key Values
 
 | Value | Default | Description |
 |-------|---------|-------------|
-| `global.imageTag` | latest | Image tag for all app images |
+| `global.imageTag` | latest | Image tag for all custom images |
+| `global.imagePullPolicy` | IfNotPresent | Set to `Always` for production |
 | `backend.replicas` | 1 | Backend pod replicas |
-| `backend.jwtSecret` | (default) | JWT signing key |
 | `postgres.storage` | 5Gi | Database PVC size |
 | `minio.enabled` | true | Deploy MinIO |
 | `minio.storage` | 10Gi | MinIO PVC size |
 | `scanner.replicas` | 1 | Scanner agent replicas |
-| `scanner.pollInterval` | 30 | Job poll interval (seconds) |
 | `serviceType` | NodePort | Service type (NodePort/ClusterIP/LoadBalancer) |
 | `ingress.enabled` | false | Enable Ingress |
 | `ingress.host` | security-scanner.local | Ingress hostname |
 
-## Database Provisioning
+## Database
 
-The chart uses a custom PostgreSQL image (`softknife/cloud-security-postgres`) with all schema and seed data baked in. On first install, PostgreSQL automatically executes all init scripts, creating:
+The database is initialized automatically on first install via ConfigMap-mounted SQL scripts:
 
-- Full database schema
-- Default users (admin, analyst, viewer)
-- Scan templates (nmap NSE scripts, nuclei, etc.)
-- Environments and sample data
+- `00-init-db.sql` — Extensions (uuid-ossp, pgcrypto)
+- `01-schema.sql` — Full schema (tables, indexes, constraints)
+- `02-seed-data.sql` — Seed data (admin user, scan templates, presets)
 
-**Important caveat:** Kubernetes does not automatically delete PersistentVolumeClaims on `helm uninstall`. This means:
-
-- Re-installing the chart will reuse the existing database (init scripts won't re-run)
-- To fully reset the database, you must delete the PVC manually:
+Scripts only run when the PVC is empty (first boot). To re-initialize:
 
 ```bash
-helm uninstall scanner
-kubectl delete pvc scanner-postgres-data
-helm install scanner ./helm/cloud-security-scanner/
+helm uninstall pilotrelease -n pilotrelease
+kubectl delete pvc pilotrelease-postgres-data -n pilotrelease
+helm install pilotrelease . -n pilotrelease -f values-secrets.yaml
 ```
 
-This applies to MinIO storage as well:
+## Ingress (Production)
 
 ```bash
-# Full reset (all data)
-helm uninstall scanner
-kubectl delete pvc scanner-postgres-data scanner-minio-data
-helm install scanner ./helm/cloud-security-scanner/
-```
-
-## Upgrade
-
-```bash
-helm upgrade scanner ./helm/cloud-security-scanner/
-```
-
-## Uninstall
-
-```bash
-# Remove deployments (keeps PVCs/data)
-helm uninstall scanner
-
-# Remove everything including data
-helm uninstall scanner
-kubectl delete pvc -l app.kubernetes.io/instance=scanner
-```
-
-## Ingress (Optional)
-
-Enable Ingress for a single hostname:
-
-```bash
-helm install scanner ./helm/cloud-security-scanner/ \
+helm install pilotrelease . -n pilotrelease \
+  -f values-secrets.yaml \
   --set ingress.enabled=true \
-  --set ingress.host=scanner.mycompany.com \
+  --set ingress.host=pilotrelease.yourdomain.com \
   --set serviceType=ClusterIP
 ```
 
 Routes:
-- `/api/*` and `/actuator/*` -> Backend
-- `/*` -> UI
+- `/api/*` and `/actuator/*` → Backend
+- `/*` → UI
 
-## Useful Commands
+## Operations
 
 ```bash
 # Pod status
-kubectl get pods -l app.kubernetes.io/instance=scanner
+kubectl get pods -n pilotrelease
 
 # Backend logs
-kubectl logs -l app.kubernetes.io/instance=scanner,app.kubernetes.io/component=backend -f
+kubectl logs -f -l app.kubernetes.io/component=backend -n pilotrelease
 
 # Scanner agent logs
-kubectl logs -l app.kubernetes.io/instance=scanner,app.kubernetes.io/component=scanner -f
+kubectl logs -f -l app.kubernetes.io/component=scanner -n pilotrelease
+
+# All agent logs
+for c in scanner zap artillery; do
+  echo "=== $c ===" && kubectl logs -l app.kubernetes.io/component=$c -n pilotrelease --tail=5
+done
 
 # Database shell
-kubectl exec -it $(kubectl get pod -l app.kubernetes.io/component=postgres -o name) -- psql -U secadmin -d security_agent
+kubectl exec -it deploy/pilotrelease-postgres -n pilotrelease -- psql -U secadmin -d security_agent
 
-# Restart a component
-kubectl rollout restart deployment scanner-backend
+# Upgrade
+helm upgrade pilotrelease . -n pilotrelease -f values-secrets.yaml
+
+# Uninstall (keeps data)
+helm uninstall pilotrelease -n pilotrelease
+
+# Full reset (deletes data)
+helm uninstall pilotrelease -n pilotrelease
+kubectl delete pvc --all -n pilotrelease
 ```

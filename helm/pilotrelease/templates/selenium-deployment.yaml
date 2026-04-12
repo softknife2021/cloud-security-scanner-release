@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-selenium
+  labels:
+    {{- include "cloud-security-scanner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: selenium
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: selenium
+  template:
+    metadata:
+      labels:
+        {{- include "cloud-security-scanner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: selenium
+    spec:
+      containers:
+        - name: selenium
+          image: selenium/standalone-chrome:latest
+          ports:
+            - containerPort: 4444
+            - containerPort: 7900
+          env:
+            - name: SE_NODE_MAX_SESSIONS
+              value: "3"
+            - name: SE_NODE_OVERRIDE_MAX_SESSIONS
+              value: "true"
+            - name: SE_SESSION_REQUEST_TIMEOUT
+              value: "300"
+            - name: SE_NODE_SESSION_TIMEOUT
+              value: "600"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+          readinessProbe:
+            httpGet:
+              path: /wd/hub/status
+              port: 4444
+            initialDelaySeconds: 10
+            periodSeconds: 15
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-selenium
+  labels:
+    {{- include "cloud-security-scanner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: selenium
+spec:
+  type: ClusterIP
+  ports:
+    - name: webdriver
+      port: 4444
+      targetPort: 4444
+    - name: vnc
+      port: 7900
+      targetPort: 7900
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: selenium

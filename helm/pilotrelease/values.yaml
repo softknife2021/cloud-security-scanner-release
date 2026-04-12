@@ -66,6 +66,16 @@ scanner:
       cpu: 500m
       memory: 512Mi
 
+# Artillery Agent (Performance Testing)
+artillery:
+  image: softknife/pilotrelease-performance
+  replicas: 1
+
+# ZAP Scanner Agent (Python + OWASP ZAP)
+zap:
+  image: softknife/pilotrelease-scanner-zap
+  replicas: 1
+
 # MinIO (S3-compatible storage)
 minio:
   enabled: true
@@ -90,6 +100,7 @@ minio:
 # UI Test Agent (Selenium WebDriver)
 uiTestAgent:
   image: softknife/pilotrelease-ui-test
+  tag: v3
   replicas: 1
   seleniumUrl: http://selenium-chrome:4444
   resources:

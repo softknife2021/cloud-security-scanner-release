@@ -1,0 +1,5 @@
+# Secrets (NEVER commit)
+values-secrets*.yaml
+helm/**/values-secrets*.yaml
+local.env
+*.env.local

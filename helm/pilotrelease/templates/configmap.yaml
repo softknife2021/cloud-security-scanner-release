@@ -22,3 +22,4 @@ data:
   S3_ENABLED: {{ .Values.minio.enabled | quote }}
   S3_BUCKET: {{ .Values.minio.bucket | quote }}
   S3_ENDPOINT: "http://{{ .Release.Name }}-minio:{{ .Values.minio.port }}"
+  ELEMENT_PICKER_SELENIUM_URL: "http://{{ .Release.Name }}-selenium:4444"
