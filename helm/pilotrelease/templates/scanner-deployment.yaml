@@ -58,6 +58,16 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-secrets
                   key: admin-password
+            - name: AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: admin-username
+            - name: AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: admin-password
             - name: AGENT_ID
               valueFrom:
                 configMapKeyRef:
