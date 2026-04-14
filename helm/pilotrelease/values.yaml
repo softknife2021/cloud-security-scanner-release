@@ -100,7 +100,7 @@ minio:
 # UI Test Agent (Selenium WebDriver)
 uiTestAgent:
   image: softknife/pilotrelease-ui-test
-  tag: v3
+  tag: latest
   replicas: 1
   seleniumUrl: http://selenium-chrome:4444
   resources:

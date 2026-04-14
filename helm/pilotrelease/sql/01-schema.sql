@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict MVVs887GdeWiN2nFVbnHb9JZYV8G3gSEJwhm4tWsb6DQcPURsOlyxszyYNxbJss
+\restrict 04XhZ9ZqOehvhL0fYEBjefZ2NhgRSoE6jOwqi0e8g6CaPeYlcR8krYSiuyhRlMg
 
--- Dumped from database version 14.22
--- Dumped by pg_dump version 14.22
+-- Dumped from database version 15.17
+-- Dumped by pg_dump version 15.17
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -212,16 +212,17 @@ CREATE TABLE public.agent_registration (
     id bigint NOT NULL,
     agent_id character varying(100) NOT NULL,
     hostname character varying(255),
-    version bigint DEFAULT 0,
+    software_version character varying(50),
     capabilities jsonb DEFAULT '[]'::jsonb,
-    status public.agent_status DEFAULT 'OFFLINE'::public.agent_status,
+    status character varying(20) DEFAULT 'OFFLINE'::character varying,
     current_job_id bigint,
     last_error text,
     last_seen_at timestamp without time zone,
     registered_at timestamp without time zone DEFAULT now() NOT NULL,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    agent_version character varying(50)
+    agent_version character varying(50),
+    version bigint DEFAULT 0
 );
 
 
@@ -369,6 +370,168 @@ CREATE SEQUENCE public.alert_instance_id_seq
 --
 
 ALTER SEQUENCE public.alert_instance_id_seq OWNED BY public.alert_instance.id;
+
+
+--
+-- Name: api_data_set; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_data_set (
+    id bigint NOT NULL,
+    name character varying(255) NOT NULL,
+    description text,
+    scenario_id bigint,
+    project_id bigint,
+    execution_mode character varying(20) DEFAULT 'SEQUENTIAL'::character varying,
+    stop_on_failure boolean DEFAULT false,
+    source_type character varying(20) DEFAULT 'JSON'::character varying,
+    created_by character varying(100),
+    updated_by character varying(100),
+    version bigint DEFAULT 0,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: api_data_set_entry; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_data_set_entry (
+    id bigint NOT NULL,
+    data_set_id bigint NOT NULL,
+    test_name character varying(255) NOT NULL,
+    description text,
+    variables jsonb DEFAULT '{}'::jsonb NOT NULL,
+    tags character varying(500),
+    enabled boolean DEFAULT true,
+    sort_order integer DEFAULT 0,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: api_data_set_entry_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.api_data_set_entry_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: api_data_set_entry_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.api_data_set_entry_id_seq OWNED BY public.api_data_set_entry.id;
+
+
+--
+-- Name: api_data_set_entry_result; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_data_set_entry_result (
+    id bigint NOT NULL,
+    execution_id bigint NOT NULL,
+    entry_id bigint,
+    scenario_execution_id bigint,
+    test_name character varying(255),
+    description text,
+    status character varying(20) DEFAULT 'PENDING'::character varying,
+    duration_ms bigint,
+    variables_used jsonb,
+    total_steps integer DEFAULT 0,
+    passed_steps integer DEFAULT 0,
+    failed_steps integer DEFAULT 0,
+    error_message text,
+    sort_order integer DEFAULT 0,
+    started_at timestamp without time zone,
+    completed_at timestamp without time zone
+);
+
+
+--
+-- Name: api_data_set_entry_result_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.api_data_set_entry_result_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: api_data_set_entry_result_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.api_data_set_entry_result_id_seq OWNED BY public.api_data_set_entry_result.id;
+
+
+--
+-- Name: api_data_set_execution; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_data_set_execution (
+    id bigint NOT NULL,
+    data_set_id bigint NOT NULL,
+    scenario_id bigint,
+    scenario_name character varying(255),
+    status character varying(20) DEFAULT 'PENDING'::character varying,
+    execution_mode character varying(20) DEFAULT 'SEQUENTIAL'::character varying,
+    total_entries integer DEFAULT 0,
+    passed_entries integer DEFAULT 0,
+    failed_entries integer DEFAULT 0,
+    skipped_entries integer DEFAULT 0,
+    triggered_by character varying(100),
+    tags character varying(500),
+    started_at timestamp without time zone,
+    completed_at timestamp without time zone,
+    duration_ms bigint,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: api_data_set_execution_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.api_data_set_execution_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: api_data_set_execution_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.api_data_set_execution_id_seq OWNED BY public.api_data_set_execution.id;
+
+
+--
+-- Name: api_data_set_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.api_data_set_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: api_data_set_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.api_data_set_id_seq OWNED BY public.api_data_set.id;
 
 
 --
@@ -676,7 +839,8 @@ CREATE TABLE public.api_scenarios (
     data_source_config jsonb DEFAULT '{}'::jsonb,
     data_driven_fail_fast boolean DEFAULT false,
     data_driven_parallelism integer DEFAULT 1,
-    app_tag character varying(100)
+    app_tag character varying(100),
+    application_id bigint
 );
 
 
@@ -697,6 +861,81 @@ CREATE SEQUENCE public.api_scenarios_id_seq
 --
 
 ALTER SEQUENCE public.api_scenarios_id_seq OWNED BY public.api_scenarios.id;
+
+
+--
+-- Name: application_deployments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.application_deployments (
+    id bigint NOT NULL,
+    base_url character varying(500) NOT NULL,
+    created_at timestamp without time zone,
+    healthcheck_url character varying(500),
+    is_active boolean,
+    swagger_url character varying(500),
+    updated_at timestamp without time zone,
+    version bigint,
+    application_id bigint NOT NULL,
+    environment_id bigint NOT NULL
+);
+
+
+--
+-- Name: application_deployments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.application_deployments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: application_deployments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.application_deployments_id_seq OWNED BY public.application_deployments.id;
+
+
+--
+-- Name: applications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.applications (
+    id bigint NOT NULL,
+    app_tag character varying(100) NOT NULL,
+    created_at timestamp without time zone,
+    created_by character varying(100),
+    description text,
+    is_active boolean,
+    name character varying(255) NOT NULL,
+    updated_at timestamp without time zone,
+    updated_by character varying(100),
+    version bigint,
+    project_id bigint
+);
+
+
+--
+-- Name: applications_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.applications_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: applications_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.applications_id_seq OWNED BY public.applications.id;
 
 
 --
@@ -819,7 +1058,7 @@ CREATE TABLE public.custom_script (
     original_filename character varying(255),
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    script_version integer DEFAULT 1,
+    script_version character varying(50),
     purpose character varying(20) DEFAULT 'SECURITY'::character varying NOT NULL,
     CONSTRAINT chk_custom_script_category CHECK (((category)::text = ANY (ARRAY[('INFRASTRUCTURE'::character varying)::text, ('APPLICATION'::character varying)::text, ('WEB'::character varying)::text, ('NETWORK'::character varying)::text, ('DATABASE'::character varying)::text, ('PERFORMANCE'::character varying)::text, ('KUBERNETES'::character varying)::text, ('CLOUD'::character varying)::text, ('CUSTOM'::character varying)::text]))),
     CONSTRAINT chk_custom_script_risk_level CHECK (((risk_level)::text = ANY (ARRAY[('LOW'::character varying)::text, ('MEDIUM'::character varying)::text, ('HIGH'::character varying)::text, ('CRITICAL'::character varying)::text]))),
@@ -844,6 +1083,46 @@ CREATE SEQUENCE public.custom_script_id_seq
 --
 
 ALTER SEQUENCE public.custom_script_id_seq OWNED BY public.custom_script.id;
+
+
+--
+-- Name: deployment_credentials; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deployment_credentials (
+    id bigint NOT NULL,
+    auth_config jsonb NOT NULL,
+    created_at timestamp without time zone,
+    created_by character varying(100),
+    description text,
+    is_active boolean,
+    is_default boolean,
+    name character varying(255) NOT NULL,
+    tag character varying(100) NOT NULL,
+    updated_at timestamp without time zone,
+    updated_by character varying(100),
+    version bigint,
+    deployment_id bigint NOT NULL
+);
+
+
+--
+-- Name: deployment_credentials_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.deployment_credentials_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: deployment_credentials_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.deployment_credentials_id_seq OWNED BY public.deployment_credentials.id;
 
 
 --
@@ -1247,7 +1526,8 @@ CREATE TABLE public.performance_scenarios (
     version bigint DEFAULT 0,
     source_scenario_id bigint,
     app_tag character varying(100),
-    auth_config jsonb
+    auth_config jsonb,
+    application_id bigint
 );
 
 
@@ -1294,37 +1574,6 @@ CREATE TABLE public.project_applications (
 --
 -- Name: project_applications_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
-
-CREATE TABLE public.release_notes (
-    id bigint NOT NULL,
-    application_id bigint NOT NULL,
-    version character varying(50) NOT NULL,
-    tag_name character varying(100),
-    from_tag character varying(100),
-    notes text,
-    commit_count integer DEFAULT 0,
-    release_status character varying(20) DEFAULT 'DRAFT',
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    created_by character varying(100)
-);
-
-CREATE SEQUENCE public.release_notes_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER SEQUENCE public.release_notes_id_seq OWNED BY public.release_notes.id;
-
-ALTER TABLE ONLY public.release_notes ALTER COLUMN id SET DEFAULT nextval('public.release_notes_id_seq'::regclass);
-
-ALTER TABLE ONLY public.release_notes ADD CONSTRAINT release_notes_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.release_notes ADD CONSTRAINT release_notes_application_id_fkey
-    FOREIGN KEY (application_id) REFERENCES public.project_applications(id) ON DELETE CASCADE;
-
-CREATE INDEX idx_release_notes_application_id ON public.release_notes USING btree (application_id);
 
 CREATE SEQUENCE public.project_applications_id_seq
     START WITH 1
@@ -1586,8 +1835,8 @@ CREATE TABLE public.scan_job (
     ui_test_suite_id bigint,
     application_id bigint,
     mobile_test_id bigint,
-    browser character varying(50),
-    execution_group_id character varying(100)
+    execution_group_id character varying(100),
+    browser character varying(50)
 );
 
 
@@ -1815,7 +2064,7 @@ CREATE TABLE public.ui_test (
     group_name character varying(100),
     feature character varying(255),
     tested_version character varying(100),
-    auth_config jsonb DEFAULT '{}'::jsonb
+    auth_config jsonb
 );
 
 
@@ -1989,6 +2238,34 @@ ALTER TABLE ONLY public.alert_instance ALTER COLUMN id SET DEFAULT nextval('publ
 
 
 --
+-- Name: api_data_set id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set ALTER COLUMN id SET DEFAULT nextval('public.api_data_set_id_seq'::regclass);
+
+
+--
+-- Name: api_data_set_entry id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_entry ALTER COLUMN id SET DEFAULT nextval('public.api_data_set_entry_id_seq'::regclass);
+
+
+--
+-- Name: api_data_set_entry_result id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_entry_result ALTER COLUMN id SET DEFAULT nextval('public.api_data_set_entry_result_id_seq'::regclass);
+
+
+--
+-- Name: api_data_set_execution id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_execution ALTER COLUMN id SET DEFAULT nextval('public.api_data_set_execution_id_seq'::regclass);
+
+
+--
 -- Name: api_payload id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -2038,6 +2315,20 @@ ALTER TABLE ONLY public.api_scenarios ALTER COLUMN id SET DEFAULT nextval('publi
 
 
 --
+-- Name: application_deployments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.application_deployments ALTER COLUMN id SET DEFAULT nextval('public.application_deployments_id_seq'::regclass);
+
+
+--
+-- Name: applications id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.applications ALTER COLUMN id SET DEFAULT nextval('public.applications_id_seq'::regclass);
+
+
+--
 -- Name: audit_log id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -2056,6 +2347,13 @@ ALTER TABLE ONLY public.auth_services ALTER COLUMN id SET DEFAULT nextval('publi
 --
 
 ALTER TABLE ONLY public.custom_script ALTER COLUMN id SET DEFAULT nextval('public.custom_script_id_seq'::regclass);
+
+
+--
+-- Name: deployment_credentials id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deployment_credentials ALTER COLUMN id SET DEFAULT nextval('public.deployment_credentials_id_seq'::regclass);
 
 
 --
@@ -2283,6 +2581,38 @@ ALTER TABLE ONLY public.alert_instance
 
 
 --
+-- Name: api_data_set_entry api_data_set_entry_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_entry
+    ADD CONSTRAINT api_data_set_entry_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: api_data_set_entry_result api_data_set_entry_result_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_entry_result
+    ADD CONSTRAINT api_data_set_entry_result_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: api_data_set_execution api_data_set_execution_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_execution
+    ADD CONSTRAINT api_data_set_execution_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: api_data_set api_data_set_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set
+    ADD CONSTRAINT api_data_set_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: api_payload api_payload_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2347,6 +2677,22 @@ ALTER TABLE ONLY public.api_scenarios
 
 
 --
+-- Name: application_deployments application_deployments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.application_deployments
+    ADD CONSTRAINT application_deployments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: applications applications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.applications
+    ADD CONSTRAINT applications_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2384,6 +2730,14 @@ ALTER TABLE ONLY public.custom_script
 
 ALTER TABLE ONLY public.custom_script
     ADD CONSTRAINT custom_script_tool_name_key UNIQUE (tool_name);
+
+
+--
+-- Name: deployment_credentials deployment_credentials_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deployment_credentials
+    ADD CONSTRAINT deployment_credentials_pkey PRIMARY KEY (id);
 
 
 --
@@ -2691,6 +3045,14 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: applications uk_9j2q5k9u8pytvu2dhd4yhiavx; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.applications
+    ADD CONSTRAINT uk_9j2q5k9u8pytvu2dhd4yhiavx UNIQUE (app_tag);
+
+
+--
 -- Name: environment_targets uk_environment_target_name; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2699,11 +3061,59 @@ ALTER TABLE ONLY public.environment_targets
 
 
 --
+-- Name: scan_job_item ukap1xahtnbrk08r3bikuaj4mbd; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.scan_job_item
+    ADD CONSTRAINT ukap1xahtnbrk08r3bikuaj4mbd UNIQUE (scan_job_id, scan_id);
+
+
+--
+-- Name: application_deployments ukav3o735upnoddnlpoyckc46k1; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.application_deployments
+    ADD CONSTRAINT ukav3o735upnoddnlpoyckc46k1 UNIQUE (application_id, environment_id);
+
+
+--
+-- Name: project_applications ukelvuv1ei3akqxfkkj62de8tks; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.project_applications
+    ADD CONSTRAINT ukelvuv1ei3akqxfkkj62de8tks UNIQUE (project_id, name);
+
+
+--
+-- Name: auth_services ukhjwv8p9yeftb4e6o3qjvwbi44; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_services
+    ADD CONSTRAINT ukhjwv8p9yeftb4e6o3qjvwbi44 UNIQUE (environment_id, name);
+
+
+--
+-- Name: ui_test_suite_item ukkn9bnjo83nw5nem5vw5tqax8b; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ui_test_suite_item
+    ADD CONSTRAINT ukkn9bnjo83nw5nem5vw5tqax8b UNIQUE (suite_id, ui_test_id);
+
+
+--
 -- Name: alert_definition uko9r1mlxcrwl6vec9jve5glo9b; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.alert_definition
     ADD CONSTRAINT uko9r1mlxcrwl6vec9jve5glo9b UNIQUE (alert_name);
+
+
+--
+-- Name: deployment_credentials ukqkimw1bih39565c6dejdr5wqc; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deployment_credentials
+    ADD CONSTRAINT ukqkimw1bih39565c6dejdr5wqc UNIQUE (deployment_id, tag);
 
 
 --
@@ -2860,6 +3270,41 @@ CREATE INDEX idx_alert_inst_status ON public.alert_instance USING btree (status)
 --
 
 CREATE INDEX idx_alert_inst_triggered ON public.alert_instance USING btree (triggered_at DESC);
+
+
+--
+-- Name: idx_api_data_set_entry_dataset; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_data_set_entry_dataset ON public.api_data_set_entry USING btree (data_set_id);
+
+
+--
+-- Name: idx_api_data_set_entry_result_exec; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_data_set_entry_result_exec ON public.api_data_set_entry_result USING btree (execution_id);
+
+
+--
+-- Name: idx_api_data_set_execution_dataset; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_data_set_execution_dataset ON public.api_data_set_execution USING btree (data_set_id);
+
+
+--
+-- Name: idx_api_data_set_project; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_data_set_project ON public.api_data_set USING btree (project_id);
+
+
+--
+-- Name: idx_api_data_set_scenario; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_data_set_scenario ON public.api_data_set USING btree (scenario_id);
 
 
 --
@@ -3903,6 +4348,70 @@ ALTER TABLE ONLY public.alert_instance
 
 
 --
+-- Name: api_data_set_entry api_data_set_entry_data_set_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_entry
+    ADD CONSTRAINT api_data_set_entry_data_set_id_fkey FOREIGN KEY (data_set_id) REFERENCES public.api_data_set(id) ON DELETE CASCADE;
+
+
+--
+-- Name: api_data_set_entry_result api_data_set_entry_result_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_entry_result
+    ADD CONSTRAINT api_data_set_entry_result_entry_id_fkey FOREIGN KEY (entry_id) REFERENCES public.api_data_set_entry(id) ON DELETE SET NULL;
+
+
+--
+-- Name: api_data_set_entry_result api_data_set_entry_result_execution_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_entry_result
+    ADD CONSTRAINT api_data_set_entry_result_execution_id_fkey FOREIGN KEY (execution_id) REFERENCES public.api_data_set_execution(id) ON DELETE CASCADE;
+
+
+--
+-- Name: api_data_set_entry_result api_data_set_entry_result_scenario_execution_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_entry_result
+    ADD CONSTRAINT api_data_set_entry_result_scenario_execution_id_fkey FOREIGN KEY (scenario_execution_id) REFERENCES public.api_scenario_executions(id) ON DELETE SET NULL;
+
+
+--
+-- Name: api_data_set_execution api_data_set_execution_data_set_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_execution
+    ADD CONSTRAINT api_data_set_execution_data_set_id_fkey FOREIGN KEY (data_set_id) REFERENCES public.api_data_set(id) ON DELETE CASCADE;
+
+
+--
+-- Name: api_data_set_execution api_data_set_execution_scenario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set_execution
+    ADD CONSTRAINT api_data_set_execution_scenario_id_fkey FOREIGN KEY (scenario_id) REFERENCES public.api_scenarios(id);
+
+
+--
+-- Name: api_data_set api_data_set_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set
+    ADD CONSTRAINT api_data_set_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
+
+
+--
+-- Name: api_data_set api_data_set_scenario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_data_set
+    ADD CONSTRAINT api_data_set_scenario_id_fkey FOREIGN KEY (scenario_id) REFERENCES public.api_scenarios(id) ON DELETE SET NULL;
+
+
+--
 -- Name: api_scan_history api_scan_history_environment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4055,6 +4564,14 @@ ALTER TABLE ONLY public.finding
 
 
 --
+-- Name: application_deployments fk30tkku5nv39ttcm0rjeyr505r; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.application_deployments
+    ADD CONSTRAINT fk30tkku5nv39ttcm0rjeyr505r FOREIGN KEY (environment_id) REFERENCES public.environments(id);
+
+
+--
 -- Name: agent_registration fk_agent_current_job; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4092,6 +4609,46 @@ ALTER TABLE ONLY public.custom_script
 
 ALTER TABLE ONLY public.scan_job
     ADD CONSTRAINT fk_scan_job_mobile_test FOREIGN KEY (mobile_test_id) REFERENCES public.mobile_tests(id) ON DELETE SET NULL;
+
+
+--
+-- Name: deployment_credentials fkb0vyep2b1odtjou6ipwcklcgo; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deployment_credentials
+    ADD CONSTRAINT fkb0vyep2b1odtjou6ipwcklcgo FOREIGN KEY (deployment_id) REFERENCES public.application_deployments(id);
+
+
+--
+-- Name: applications fkhm18k2os8y6nqh80nv10g5cb6; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.applications
+    ADD CONSTRAINT fkhm18k2os8y6nqh80nv10g5cb6 FOREIGN KEY (project_id) REFERENCES public.projects(id);
+
+
+--
+-- Name: application_deployments fkp7jj1o6nu0uif45mrscd7marg; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.application_deployments
+    ADD CONSTRAINT fkp7jj1o6nu0uif45mrscd7marg FOREIGN KEY (application_id) REFERENCES public.applications(id);
+
+
+--
+-- Name: api_scenarios fksa8l0usnpp6dtkv10ca54odjm; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_scenarios
+    ADD CONSTRAINT fksa8l0usnpp6dtkv10ca54odjm FOREIGN KEY (application_id) REFERENCES public.applications(id);
+
+
+--
+-- Name: performance_scenarios fktrg239lnxftnuvgd2shbayouc; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.performance_scenarios
+    ADD CONSTRAINT fktrg239lnxftnuvgd2shbayouc FOREIGN KEY (application_id) REFERENCES public.applications(id);
 
 
 --
@@ -4370,5 +4927,5 @@ ALTER TABLE ONLY public.user_roles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict MVVs887GdeWiN2nFVbnHb9JZYV8G3gSEJwhm4tWsb6DQcPURsOlyxszyYNxbJss
+\unrestrict 04XhZ9ZqOehvhL0fYEBjefZ2NhgRSoE6jOwqi0e8g6CaPeYlcR8krYSiuyhRlMg
 
